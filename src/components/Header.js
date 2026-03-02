@@ -35,7 +35,7 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-white shadow-md sticky top-0 z-20 border-b border-gray-200" dir={isRTL ? 'rtl' : 'ltr'}>
+    <header className="bg-white shadow-md sticky top-0 z-40 border-b border-gray-200" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
@@ -48,9 +48,9 @@ const Header = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className={`hidden md:flex items-center gap-6 ${isRTL ? 'flex-row-reverse' : ''}`}>
             {/* Language Selector */}
-            <div className="flex items-center gap-2 text-sm text-gray-700">
+            <div className={`flex items-center gap-2 text-sm text-gray-700 ${isRTL ? 'flex-row-reverse' : ''}`}>
               <Globe size={18} />
               <select 
                 value={language}
@@ -62,6 +62,14 @@ const Header = () => {
                 <option value="en">English</option>
               </select>
             </div>
+
+            {/* Guest Booking Lookup */}
+            <Link 
+              to="/guest-booking-lookup" 
+              className="text-gray-700 hover:text-primary-600 font-medium text-sm transition-colors"
+            >
+              {language === 'fr' ? 'Suivre ma réservation' : language === 'ar' ? 'تتبع حجزي' : 'Track Booking'}
+            </Link>
 
             {/* My Bookings */}
             <Link 
@@ -76,7 +84,7 @@ const Header = () => {
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2 bg-primary-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-primary-700 transition-all shadow-sm"
+                  className={`flex items-center gap-2 bg-primary-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-primary-700 transition-all shadow-sm ${isRTL ? 'flex-row-reverse' : ''}`}
                 >
                   <UserCircle size={20} />
                   <span>{user?.firstName || t.welcome}</span>
@@ -125,7 +133,7 @@ const Header = () => {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <Link
                   to="/login"
                   className="text-gray-700 hover:text-primary-600 font-semibold text-sm transition-colors px-4 py-2"
@@ -168,6 +176,14 @@ const Header = () => {
                   <option value="en">English</option>
                 </select>
               </div>
+
+              <Link
+                to="/guest-booking-lookup"
+                className="text-gray-700 hover:text-primary-600 font-medium py-2 px-4 rounded-lg hover:bg-gray-50 transition-all"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {language === 'fr' ? 'Suivre ma réservation' : language === 'ar' ? 'تتبع حجزي' : 'Track Booking'}
+              </Link>
 
               <Link
                 to="/bookings"

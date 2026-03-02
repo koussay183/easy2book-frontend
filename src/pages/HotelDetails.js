@@ -202,14 +202,91 @@ const HotelDetails = () => {
           console.error('Error fetching hotel details:', error);
         }
       } else {
-        console.log('Hotel not found in context');
+        // Fallback: direct URL access — fetch hotel from MyGo using URL params (or defaults)
+        const today    = new Date();
+        const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+        const toISO    = (d) => d.toISOString().split('T')[0];
+
+        const urlCheckIn  = searchParams.get('checkIn')  || toISO(today);
+        const urlCheckOut = searchParams.get('checkOut') || toISO(tomorrow);
+
+        // Always attempt the fetch with real or default dates
+        {
+          try {
+            // Parse roomsConfig from URL (default: 1 room, 2 adults)
+            const roomsConfigParam = searchParams.get('roomsConfig');
+            let roomsConfig = [{ adults: 2, children: [] }];
+            if (roomsConfigParam) {
+              try { roomsConfig = JSON.parse(decodeURIComponent(roomsConfigParam)); } catch (_) {}
+            }
+            const roomsArray = roomsConfig.map(room => ({
+              Adult: room.adults,
+              Child: room.children || []
+            }));
+
+            const response = await fetch(API_ENDPOINTS.MYGO_HOTELS_SEARCH, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                SearchDetails: {
+                  BookingDetails: {
+                    CheckIn: urlCheckIn,
+                    CheckOut: urlCheckOut,
+                    Hotels: [parseInt(id)]
+                  },
+                  Filters: { OnlyAvailable: true },
+                  Rooms: roomsArray
+                }
+              })
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success' && result.data?.HotelSearch?.length > 0) {
+              const found = result.data.HotelSearch.find(h => h.Hotel?.Id === parseInt(id))
+                            || result.data.HotelSearch[0];
+              if (found) {
+                const hotelObj = {
+                  ...found.Hotel,
+                  SearchData: {
+                    Token: found.Token,
+                    Price: found.Price,
+                    Source: found.Source,
+                    Currency: found.Currency
+                  }
+                };
+                setHotel(hotelObj);
+                setSearchCheckIn(urlCheckIn);
+                setSearchCheckOut(urlCheckOut);
+
+                // Also fetch hotel details
+                try {
+                  const detailRes = await fetch(API_ENDPOINTS.MYGO_HOTELS_DETAILS, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ HotelId: id })
+                  });
+                  if (detailRes.ok) {
+                    const detailResult = await detailRes.json();
+                    if (detailResult.status === 'success' && detailResult.data?.HotelDetail) {
+                      setHotelDetails(detailResult.data.HotelDetail);
+                    }
+                  }
+                } catch (_) {}
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching hotel from API on direct access:', error);
+          }
+        }
       }
-      
+
       setLoading(false);
     };
-    
+
     loadHotelData();
-  }, [id, getHotelById]);
+  }, [id, getHotelById]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-play gallery effect
   useEffect(() => {
@@ -399,8 +476,8 @@ const HotelDetails = () => {
           PreBooking: true,
           City: hotel.City?.toString() || searchParams.get('city') || cachedSearchParams.city,
           Hotel: parseInt(hotel.Id || id),
-          CheckIn: checkIn,
-          CheckOut: checkOut,
+          CheckIn: searchCheckIn,
+          CheckOut: searchCheckOut,
           Option: [], // Add options if available
           Source: hotel.SearchData?.Source || "local-2",
           Rooms: [
@@ -562,7 +639,7 @@ const HotelDetails = () => {
   const address = displayData.Adress || hotel.Adress || hotel.Address || '';
   const hotelType = displayData.Type || '';
   const cityName = displayData.City?.Name || hotel.City?.Name || '';
-  const countryName = displayData.City?.Country || hotel.City?.Country?.Name || '';
+  const countryName = displayData.City?.Country?.Name || hotel.City?.Country?.Name || '';
   const latitude = displayData.Localization?.Latitude || hotel.Localization?.Latitude || displayData.Latitude || hotel.Latitude;
   const longitude = displayData.Localization?.Longitude || hotel.Localization?.Longitude || displayData.Longitude || hotel.Longitude;
   
@@ -721,7 +798,7 @@ const HotelDetails = () => {
       </div>
 
       {/* Search Availability Form */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 relative z-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         <div className="bg-white rounded-xl shadow-2xl p-4 sm:p-6 border-2 border-primary-200">
           <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
             <Calendar size={18} className="text-primary-600" />
@@ -821,12 +898,12 @@ const HotelDetails = () => {
                     </h2>
                     {/* Booking Info */}
                     <div className="flex items-center gap-2 sm:gap-3 bg-white/20 backdrop-blur-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg flex-wrap text-xs sm:text-sm">
-                      {checkIn && checkOut && (
+                      {searchCheckIn && searchCheckOut && (
                         <>
                           <div className="flex items-center gap-1 sm:gap-2">
                             <Calendar size={14} className="sm:w-4 sm:h-4" />
                             <span className="text-sm font-semibold">
-                              {new Date(checkIn).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} - {new Date(checkOut).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                              {new Date(searchCheckIn).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} - {new Date(searchCheckOut).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
                             </span>
                           </div>
                           <div className="h-5 w-px bg-white/40"></div>
@@ -851,26 +928,16 @@ const HotelDetails = () => {
                       )}
                     </div>
                   </div>
-                  {/* Progress Steps */}
+                  {/* Progress Steps - Simplified to 2 steps */}
                   <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm flex-wrap">
                     <div className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 rounded-full ${!selectedBoarding ? 'bg-white text-primary-700' : 'bg-primary-500 text-white'}`}>
                       <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs ${!selectedBoarding ? 'bg-primary-700 text-white' : 'bg-white text-primary-700'}`}>1</div>
                       <span className="font-semibold hidden sm:inline">{language === 'fr' ? 'Pension' : language === 'ar' ? 'نوع الإقامة' : 'Board'}</span>
                     </div>
                     <div className="h-0.5 w-4 sm:w-8 bg-white opacity-50"></div>
-                    <div className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 rounded-full ${selectedBoarding && !selectedRoom ? 'bg-white text-primary-700' : selectedRoom ? 'bg-primary-500 text-white' : 'bg-primary-500 bg-opacity-50 text-white'}`}>
-                      <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs ${selectedBoarding && !selectedRoom ? 'bg-primary-700 text-white' : selectedRoom ? 'bg-white text-primary-700' : 'bg-white bg-opacity-30 text-white'}`}>2</div>
+                    <div className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 rounded-full ${selectedBoarding ? 'bg-white text-primary-700' : 'bg-primary-500 bg-opacity-50 text-white'}`}>
+                      <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs ${selectedBoarding ? 'bg-primary-700 text-white' : 'bg-white bg-opacity-30 text-white'}`}>2</div>
                       <span className="font-semibold hidden sm:inline">{language === 'fr' ? 'Chambre' : language === 'ar' ? 'الغرفة' : 'Room'}</span>
-                    </div>
-                    <div className="h-0.5 w-4 sm:w-8 bg-white opacity-50"></div>
-                    <div className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 rounded-full ${bookingStep === 3 ? 'bg-white text-primary-700' : bookingStep > 3 ? 'bg-primary-500 text-white' : 'bg-primary-500 bg-opacity-50 text-white'}`}>
-                      <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs ${bookingStep === 3 ? 'bg-primary-700 text-white' : bookingStep > 3 ? 'bg-white text-primary-700' : 'bg-white bg-opacity-30 text-white'}`}>3</div>
-                      <span className="font-semibold hidden sm:inline">{language === 'fr' ? 'Informations' : language === 'ar' ? 'المعلومات' : 'Info'}</span>
-                    </div>
-                    <div className="h-0.5 w-4 sm:w-8 bg-white opacity-50"></div>
-                    <div className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 rounded-full ${bookingStep === 4 ? 'bg-white text-primary-700' : 'bg-primary-500 bg-opacity-50 text-white'}`}>
-                      <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs ${bookingStep === 4 ? 'bg-primary-700 text-white' : 'bg-white bg-opacity-30 text-white'}`}>4</div>
-                      <span className="font-semibold hidden sm:inline">{language === 'fr' ? 'Confirmer' : language === 'ar' ? 'تأكيد' : 'Confirm'}</span>
                     </div>
                   </div>
                 </div>
@@ -956,12 +1023,25 @@ const HotelDetails = () => {
                           {language === 'fr' ? 'Changer' : language === 'ar' ? 'تغيير' : 'Change'}
                         </button>
                       </div>
+                      
+                      {/* Info Banner */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-start gap-2">
+                        <Info size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-blue-900">
+                          {language === 'fr' 
+                            ? 'Après avoir sélectionné une chambre, vous serez redirigé vers la page de réservation pour finaliser.'
+                            : language === 'ar' 
+                            ? 'بعد اختيار الغرفة، سيتم توجيهك إلى صفحة الحجز للإكمال.'
+                            : 'After selecting a room, you will be redirected to the booking page to finalize.'}
+                        </p>
+                      </div>
+                      
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {selectedBoarding.Pax?.map((pax, paxIdx) => (
                           pax.Rooms?.map((room, roomIdx) => {
                             // Calculate nights from check-in and check-out dates
-                            const nights = checkIn && checkOut 
-                              ? Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24))
+                            const nights = searchCheckIn && searchCheckOut
+                              ? Math.ceil((new Date(searchCheckOut) - new Date(searchCheckIn)) / (1000 * 60 * 60 * 24))
                               : hotel.SearchData?.NumberOfNights || 1;
                             const pricePerNight = parseFloat(room.Price) / nights;
                             
@@ -969,15 +1049,33 @@ const HotelDetails = () => {
                             <button
                               key={`${paxIdx}-${roomIdx}`}
                               onClick={() => {
-                                setSelectedRoom({
-                                  roomId: `${selectedBoarding.Id}-${paxIdx}-${roomIdx}`,
-                                  room,
-                                  boarding: selectedBoarding,
-                                  pricePerNight,
-                                  totalPrice: room.Price,
-                                  nights
+                                // Navigate to BookingPage with all necessary data
+                                navigate('/hotel/booking', {
+                                  state: {
+                                    hotel,
+                                    room: {
+                                      ...room,
+                                      Id: room.Id || room.RoomType,
+                                      Name: room.Name || room.RoomType,
+                                      Price: room.Price
+                                    },
+                                    boarding: {
+                                      ...selectedBoarding,
+                                      Id: selectedBoarding.Id,
+                                      Name: selectedBoarding.Name,
+                                      Code: selectedBoarding.Code
+                                    },
+                                    checkIn: searchCheckIn,
+                                    checkOut: searchCheckOut,
+                                    adults: searchRoomsConfig.reduce((sum, room) => sum + room.adults, 0),
+                                    children: searchRoomsConfig.reduce((sum, room) => sum + room.children.length, 0),
+                                    rooms: searchRooms,
+                                    roomsConfig: searchRoomsConfig,
+                                    nights,
+                                    pricePerNight,
+                                    totalPrice: room.Price
+                                  }
                                 });
-                                setBookingStep(3);
                               }}
                               className="border-2 border-gray-200 rounded-xl p-4 bg-white hover:shadow-lg hover:border-primary-400 transition-all text-left group"
                             >
@@ -1007,7 +1105,7 @@ const HotelDetails = () => {
                                   <p className="text-xs text-gray-500">{pricePerNight.toFixed(0)} × {nights} {language === 'fr' ? 'nuits' : language === 'ar' ? 'ليالي' : 'nights'}</p>
                                 </div>
                                 <div className="flex items-center gap-1 text-primary-600 font-semibold text-sm">
-                                  <span>{language === 'fr' ? 'Choisir' : language === 'ar' ? 'اختر' : 'Select'}</span>
+                                  <span>{language === 'fr' ? 'Réserver' : language === 'ar' ? 'احجز' : 'Book Now'}</span>
                                   <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
                                 </div>
                               </div>
@@ -1288,13 +1386,13 @@ const HotelDetails = () => {
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-gray-600">{language === 'fr' ? 'Arrivée' : 'Check-in'}</span>
                               <span className="font-semibold text-gray-900">
-                                {checkIn && new Date(checkIn).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                                {searchCheckIn && new Date(searchCheckIn).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                               </span>
                             </div>
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-gray-600">{language === 'fr' ? 'Départ' : 'Check-out'}</span>
                               <span className="font-semibold text-gray-900">
-                                {checkOut && new Date(checkOut).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                                {searchCheckOut && new Date(searchCheckOut).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                               </span>
                             </div>
                             <div className="pt-2 border-t border-gray-200">

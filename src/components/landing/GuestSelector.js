@@ -125,15 +125,15 @@ const GuestSelector = ({
 
       {/* Guest Selector Modal */}
       {(showGuestSelector || onClose) && (
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border border-gray-300 rounded-2xl shadow-2xl p-5 sm:p-6 z-[99999] w-[95vw] sm:w-[90vw] max-w-2xl max-h-[85vh] overflow-y-auto scrollbar-hide">
-          <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border border-gray-300 rounded-2xl shadow-2xl p-5 sm:p-6 z-[99999] w-[95vw] sm:w-[90vw] max-w-2xl max-h-[85vh] overflow-y-auto scrollbar-hide" dir={isRTL ? 'rtl' : 'ltr'}>
+          <h3 className={`text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
             <Bed size={22} className="text-primary-600" />
             {language === 'fr' ? 'Configuration des chambres' : language === 'ar' ? 'تكوين الغرف' : 'Room Configuration'}
           </h3>
           
           {/* Number of Rooms */}
-          <div className="flex items-center justify-between mb-6 pb-5 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-transparent rounded-lg p-4">
-            <div>
+          <div className={`flex items-center justify-between mb-6 pb-5 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-transparent rounded-lg p-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+            <div className={isRTL ? 'text-right' : 'text-left'}>
               <div className="font-bold text-gray-900 text-lg">{t.guestSelector.rooms}</div>
               <div className="text-xs text-gray-500">{language === 'fr' ? 'Nombre de chambres' : language === 'ar' ? 'عدد الغرف' : 'Number of rooms'}</div>
             </div>
@@ -169,8 +169,8 @@ const GuestSelector = ({
               
               return (
               <div key={roomIndex} className="border border-gray-200 rounded-xl p-4 sm:p-5 bg-gray-50">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                <div className={`flex items-center justify-between mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <h4 className={`font-bold text-gray-900 flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <Bed size={18} className="text-primary-600" />
                     {language === 'fr' ? `Chambre ${roomIndex + 1}` : language === 'ar' ? `غرفة ${roomIndex + 1}` : `Room ${roomIndex + 1}`}
                   </h4>
@@ -180,10 +180,10 @@ const GuestSelector = ({
                 </div>
                 
                 {/* Adults for this room */}
-                <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
-                  <div className="flex items-center gap-2">
+                <div className={`flex items-center justify-between mb-4 pb-4 border-b border-gray-200 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <Users size={18} className="text-gray-600" />
-                    <div>
+                    <div className={isRTL ? 'text-right' : 'text-left'}>
                       <div className="font-semibold text-gray-900">{t.guestSelector.adults}</div>
                       <div className="text-xs text-gray-500">{language === 'fr' ? '12 ans et plus' : language === 'ar' ? 'من 12 سنة فأكثر' : '12+ years'}</div>
                     </div>
@@ -208,10 +208,10 @@ const GuestSelector = ({
                 </div>
 
                 {/* Children for this room */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
+                <div className={`flex items-center justify-between mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <Baby size={18} className="text-gray-600" />
-                    <div>
+                    <div className={isRTL ? 'text-right' : 'text-left'}>
                       <div className="font-semibold text-gray-900">{t.guestSelector.children}</div>
                       <div className="text-xs text-gray-500">{language === 'fr' ? '0-11 ans' : language === 'ar' ? 'من 0-11 سنة' : '0-11 years'}</div>
                     </div>
@@ -238,19 +238,19 @@ const GuestSelector = ({
                 {/* Child Ages */}
                 {room.children.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="font-semibold text-gray-900 mb-3 text-sm">
+                    <div className={`font-semibold text-gray-900 mb-3 text-sm ${isRTL ? 'text-right' : 'text-left'}`}>
                       {language === 'fr' ? 'Âges des enfants' : language === 'ar' ? 'أعمار الأطفال' : 'Children Ages'}
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {room.children.map((age, childIndex) => (
                         <div key={childIndex}>
-                          <label className="text-xs text-gray-600 mb-1 block">
+                          <label className={`text-xs text-gray-600 mb-1 block ${isRTL ? 'text-right' : 'text-left'}`}>
                             {language === 'fr' ? `Enfant ${childIndex + 1}` : language === 'ar' ? `طفل ${childIndex + 1}` : `Child ${childIndex + 1}`}
                           </label>
                           <select
                             value={age}
                             onChange={(e) => updateChildAge(roomIndex, childIndex, e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 bg-white"
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 bg-white ${isRTL ? 'text-right' : 'text-left'}`}
                           >
                             {Array.from({ length: 12 }, (_, i) => (
                               <option key={i} value={i}>{i} {language === 'fr' ? 'ans' : language === 'ar' ? 'سنة' : 'years'}</option>
@@ -268,10 +268,10 @@ const GuestSelector = ({
 
           {/* Summary */}
           <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-5">
-            <div className="text-sm font-semibold text-gray-700 mb-2">
+            <div className={`text-sm font-semibold text-gray-700 mb-2 ${isRTL ? 'text-right' : 'text-left'}`}>
               {language === 'fr' ? 'Résumé' : language === 'ar' ? 'ملخص' : 'Summary'}
             </div>
-            <div className="text-lg font-bold text-primary-900">
+            <div className={`text-lg font-bold text-primary-900 ${isRTL ? 'text-right' : 'text-left'}`}>
               {rooms} {t.guestSelector.rooms} • {totalAdults} {t.guestSelector.adults}
               {totalChildren > 0 ? ` • ${totalChildren} ${t.guestSelector.children}` : ''}
             </div>

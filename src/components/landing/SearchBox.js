@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Hotel, Plane, Mountain, Sparkles, MapPin, Calendar, Search, Car, Train, Loader2 } from 'lucide-react';
+import { Hotel, Plane, Mountain, Sparkles, MapPin, Calendar, Search, Car, Train } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import GuestSelector from './GuestSelector';
 import { useLanguage } from '../../context/LanguageContext';
 import { translations } from '../../locales/translations';
-import { API_ENDPOINTS } from '../../config/api';
 
 // City data
 const cities = [
@@ -48,8 +47,8 @@ const cities = [
   { id: 6489, name: "Esenyurt - Istanbul", region: "", country: "Turquie" },
 ];
 
-const SearchBox = ({ 
-  activeTab, 
+const SearchBox = ({
+  activeTab,
   setActiveTab,
   rooms,
   setRooms,
@@ -62,20 +61,20 @@ const SearchBox = ({
   const t = translations[language].search;
   const isRTL = language === 'ar';
   const navigate = useNavigate();
-  
-  // Loading state
-  const [isSearching, setIsSearching] = useState(false);
-  
+
   // Destination state and suggestions
   const [destination, setDestination] = useState('');
   const [selectedCity, setSelectedCity] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredCities, setFilteredCities] = useState([]);
   const destinationRef = useRef(null);
-  
+
   // Date states
   const [checkInDate, setCheckInDate] = useState('');
   const [checkOutDate, setCheckOutDate] = useState('');
+
+  // Omra category state
+  const [selectedOmraCategory, setSelectedOmraCategory] = useState('');
 
   // Filter cities based on input
   useEffect(() => {
@@ -86,8 +85,8 @@ const SearchBox = ({
       );
       setFilteredCities(filtered);
     } else {
-      setFilteredCities([]);
-      setShowSuggestions(false);
+      // Show all cities when input is empty
+      setFilteredCities(cities);
     }
   }, [destination]);
 
@@ -108,68 +107,24 @@ const SearchBox = ({
     setShowSuggestions(false);
   };
   
-  const handleSearch = async () => {
+  const handleSearch = () => {
     if (!selectedCity) {
       alert(language === 'fr' ? 'Veuillez sélectionner une destination' : language === 'ar' ? 'الرجاء اختيار وجهة' : 'Please select a destination');
       return;
     }
-    
     if (!checkInDate || !checkOutDate) {
       alert(language === 'fr' ? 'Veuillez sélectionner les dates' : language === 'ar' ? 'الرجاء اختيار التواريخ' : 'Please select dates');
       return;
     }
-    
-    setIsSearching(true);
-    
-    try {
-      // Prepare the request body in the proper format
-      const requestBody = {
-        SearchDetails: {
-          BookingDetails: {
-            CheckIn: checkInDate,
-            CheckOut: checkOutDate,
-            Hotels: [selectedCity.id]
-          },
-          Filters: {
-            OnlyAvailable: true
-          },
-          Rooms: roomsConfig.map(room => ({
-            Adult: room.adults,
-            Child: room.children
-          }))
-        }
-      };
-      
-      console.log('Sending search request:', requestBody);
-      
-      // Make POST request to the backend
-      const response = await fetch(API_ENDPOINTS.MYGO_HOTELS, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
-      
-      const data = await response.json();
-      console.log('Search response:', data);
-      
-      // Navigate to hotels page with search params for display purposes
-      const searchParams = new URLSearchParams({
-        cityId: selectedCity.id,
-        cityName: selectedCity.name,
-        checkIn: checkInDate,
-        checkOut: checkOutDate,
-        rooms: rooms,
-        roomsConfig: JSON.stringify(roomsConfig)
-      });
-      
-      navigate(`/hotels?${searchParams.toString()}`);
-    } catch (error) {
-      console.error('Search error:', error);
-      alert(language === 'fr' ? 'Erreur lors de la recherche' : language === 'ar' ? 'خطأ في البحث' : 'Search error');
-      setIsSearching(false);
-    }
+    const searchParams = new URLSearchParams({
+      cityId: selectedCity.id,
+      cityName: selectedCity.name,
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      rooms: rooms,
+      roomsConfig: JSON.stringify(roomsConfig)
+    });
+    navigate(`/hotels?${searchParams.toString()}`);
   };
   
   const services = [
@@ -236,6 +191,7 @@ const SearchBox = ({
                       setDestination(e.target.value);
                       setShowSuggestions(true);
                     }}
+                    onFocus={() => setShowSuggestions(true)}
                     className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-primary-700 focus:ring-2 focus:ring-primary-100 transition-all bg-white hover:border-gray-400 ${isRTL ? 'text-right' : 'text-left'}`}
                   />
                   
@@ -311,26 +267,85 @@ const SearchBox = ({
 
               {/* Search Button - Full Width */}
               <div className="w-full pt-2">
-                <button 
+                <button
                   onClick={handleSearch}
-                  disabled={isSearching}
-                  className={`w-full ${isSearching ? 'bg-primary-500 cursor-not-allowed' : 'bg-primary-700 hover:bg-primary-800 active:scale-[0.98]'} text-white py-4 px-6 rounded-xl font-bold text-base transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2.5`}
+                  className="w-full bg-primary-700 hover:bg-primary-800 active:scale-[0.98] text-white py-4 px-6 rounded-xl font-bold text-base transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2.5"
                 >
-                  {isSearching ? (
-                    <>
-                      <Loader2 size={20} className="animate-spin" />
-                      <span>{language === 'fr' ? 'Recherche...' : language === 'ar' ? 'جاري البحث...' : 'Searching...'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Search size={20} />
-                      <span>{t.searchButton}</span>
-                    </>
-                  )}
+                  <Search size={20} />
+                  <span>{t.searchButton}</span>
                 </button>
               </div>
             </div>
           </>
+        ) : activeTab === 'omra' ? (
+          <div className="space-y-6 py-2">
+            {/* Omra Header */}
+            <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <div className="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Mountain size={24} className="text-primary-600" />
+              </div>
+              <div className={isRTL ? 'text-right' : 'text-left'}>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {language === 'fr' ? 'Omra & Hajj' : language === 'ar' ? 'عمرة وحج' : 'Omra & Hajj'}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {language === 'fr' ? 'Forfaits complets depuis la Tunisie' : language === 'ar' ? 'باقات متكاملة من تونس' : 'Complete packages from Tunisia'}
+                </p>
+              </div>
+            </div>
+
+            {/* Category Selection */}
+            <div>
+              <label className={`block text-xs font-bold text-gray-700 mb-2.5 ${isRTL ? 'text-right' : 'text-left'}`}>
+                {language === 'fr' ? 'Type de voyage' : language === 'ar' ? 'نوع الرحلة' : 'Trip type'}
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { id: 'umrah', label: language === 'fr' ? 'Omra' : language === 'ar' ? 'عمرة' : 'Umrah', desc: language === 'fr' ? 'Toute l\'année' : language === 'ar' ? 'طوال العام' : 'Year-round' },
+                  { id: 'hajj', label: language === 'fr' ? 'Hajj' : language === 'ar' ? 'حج' : 'Hajj', desc: language === 'fr' ? 'Saison annuelle' : language === 'ar' ? 'موسم سنوي' : 'Annual season' },
+                  { id: 'umrah_plus', label: language === 'fr' ? 'Omra Plus' : language === 'ar' ? 'عمرة بلس' : 'Umrah Plus', desc: language === 'fr' ? 'Premium 5★' : language === 'ar' ? 'فاخر 5★' : 'Premium 5★' }
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedOmraCategory(cat.id)}
+                    className={`flex flex-col items-center gap-1 px-3 py-4 rounded-xl border-2 transition-all text-center ${
+                      selectedOmraCategory === cat.id
+                        ? 'border-primary-600 bg-primary-50 text-primary-800'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-primary-300 hover:bg-primary-50/50'
+                    }`}
+                  >
+                    <span className="font-bold text-sm">{cat.label}</span>
+                    <span className="text-xs text-gray-400">{cat.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Features list */}
+            <div className="bg-gray-50 rounded-xl p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  language === 'fr' ? '✓ Vols inclus' : language === 'ar' ? '✓ الطيران مشمول' : '✓ Flights included',
+                  language === 'fr' ? '✓ Hôtels 4★ & 5★' : language === 'ar' ? '✓ فنادق 4★ و5★' : '✓ 4★ & 5★ Hotels',
+                  language === 'fr' ? '✓ Guide accompagnateur' : language === 'ar' ? '✓ مرشد مرافق' : '✓ Guided groups'
+                ].map((feature, i) => (
+                  <span key={i} className="text-sm text-primary-700 font-medium text-center">{feature}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* CTA Button */}
+            <div className="pt-1">
+              <button
+                onClick={() => navigate(selectedOmraCategory ? `/omra?category=${selectedOmraCategory}` : '/omra')}
+                className="w-full bg-primary-700 hover:bg-primary-800 active:scale-[0.98] text-white py-4 px-6 rounded-xl font-bold text-base transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2.5"
+              >
+                <Mountain size={20} />
+                <span>{language === 'fr' ? 'Voir les offres disponibles' : language === 'ar' ? 'عرض العروض المتاحة' : 'View available offers'}</span>
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="text-center py-20">
             <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-secondary-400 to-secondary-500 rounded-full mb-6 shadow-lg">

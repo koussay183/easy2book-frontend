@@ -4,36 +4,26 @@ import logo from '../assets/images/logo.png';
 const Loader = () => {
   return (
     <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
-      <div className="text-center">
-        {/* Cute Logo with Bounce Animation */}
-        <div className="mb-6 animate-bounce">
-          <img 
-            src={logo}
-            alt="Easy2Book" 
-            className="w-32 h-auto object-contain mx-auto"
+      <div className="flex flex-col items-center">
+        <img
+          src={logo}
+          alt="Easy2Book"
+          className="w-28 h-auto object-contain mb-6"
+        />
+        <div className="flex items-end gap-1.5">
+          <span
+            className="w-2.5 h-2.5 bg-primary-600 rounded-full animate-bounce"
+            style={{ animationDelay: '0ms', animationDuration: '0.7s' }}
+          />
+          <span
+            className="w-2.5 h-2.5 bg-secondary-500 rounded-full animate-bounce"
+            style={{ animationDelay: '120ms', animationDuration: '0.7s' }}
+          />
+          <span
+            className="w-2.5 h-2.5 bg-primary-600 rounded-full animate-bounce"
+            style={{ animationDelay: '240ms', animationDuration: '0.7s' }}
           />
         </div>
-
-        {/* Cute Bouncing Dots */}
-        <div className="flex justify-center items-end gap-2 mb-4 h-8">
-          <div 
-            className="w-3 h-3 bg-primary-600 rounded-full animate-bounce"
-            style={{ animationDelay: '0ms', animationDuration: '0.6s' }}
-          ></div>
-          <div 
-            className="w-3 h-3 bg-secondary-500 rounded-full animate-bounce"
-            style={{ animationDelay: '100ms', animationDuration: '0.6s' }}
-          ></div>
-          <div 
-            className="w-3 h-3 bg-primary-600 rounded-full animate-bounce"
-            style={{ animationDelay: '200ms', animationDuration: '0.6s' }}
-          ></div>
-        </div>
-        
-        {/* Cute Loading Text */}
-        <p className="text-primary-600 text-sm font-medium animate-pulse">
-          جاري التحميل... ✨
-        </p>
       </div>
     </div>
   );

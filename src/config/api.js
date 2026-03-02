@@ -32,14 +32,52 @@ export const API_ENDPOINTS = {
   MYGO_HOTELS: `${API_BASE_URL}/api/mygo/hotels`,
   MYGO_HOTELS_SEARCH: `${API_BASE_URL}/api/mygo/hotels/search`,
   MYGO_HOTELS_DETAILS: `${API_BASE_URL}/api/mygo/hotels/details`,
+  MYGO_HOTELS_NEARBY: `${API_BASE_URL}/api/mygo/hotels/nearby`,
+  MYGO_HOTELS_MOST_BOOKED: `${API_BASE_URL}/api/mygo/hotels/most-booked`,
+  MYGO_HOTELS_FEATURED: `${API_BASE_URL}/api/mygo/hotels/featured`,
+  MYGO_HOTELS_BEST_RATED: `${API_BASE_URL}/api/mygo/hotels/best-rated`,
+  MYGO_HOTELS_BUDGET: `${API_BASE_URL}/api/mygo/hotels/budget`,
   
-  // Bookings endpoints
-  BOOKINGS: `${API_BASE_URL}/api/bookings`,
-  BOOKINGS_ADMIN_ALL: `${API_BASE_URL}/api/bookings/admin/all`,
+  // Bookings endpoints - PUBLIC (No Auth)
+  BOOKINGS: `${API_BASE_URL}/api/bookings`, // POST - Create booking
+  BOOKINGS_GUEST_LOOKUP: `${API_BASE_URL}/api/bookings/guest/lookup`, // POST - Look up guest booking by email + code
+  BOOKINGS_DETAILS: `${API_BASE_URL}/api/bookings/details`, // GET - Get booking by ID or confirmation code
+  
+  // Bookings endpoints - USER PROTECTED (Auth Required)
+  BOOKINGS_USER: `${API_BASE_URL}/api/bookings`, // GET - Get user's own bookings
+  BOOKINGS_USER_CANCEL: `${API_BASE_URL}/api/bookings`, // PATCH /:id/cancel - Cancel a booking
+  
+  // Bookings endpoints - ADMIN ONLY (Admin Auth Required)
+  BOOKINGS_ADMIN_ALL: `${API_BASE_URL}/api/bookings/admin/all`, // GET - Get all bookings with filters
+  BOOKINGS_ADMIN_STATS: `${API_BASE_URL}/api/bookings/admin/stats`, // GET - Get booking statistics & analytics
+  BOOKINGS_ADMIN_EXPORT_CSV: `${API_BASE_URL}/api/bookings/admin/export/csv`, // GET - Export all bookings as CSV
+  BOOKINGS_ADMIN_CONFIRM: `${API_BASE_URL}/api/bookings`, // PATCH /:id/confirm - Confirm booking & send to myGo
+  BOOKINGS_ADMIN_PAYMENT: `${API_BASE_URL}/api/bookings`, // PATCH /:id/payment - Update payment status
+  BOOKINGS_ADMIN_STATUS: `${API_BASE_URL}/api/bookings`, // PATCH /:id/status - Update booking status
+  BOOKINGS_ADMIN_UPDATE: `${API_BASE_URL}/api/bookings`, // PATCH /:id - Update booking details
+  BOOKINGS_ADMIN_DELETE: `${API_BASE_URL}/api/bookings`, // DELETE /:id - Delete booking
   
   // Admin endpoints
   ADMIN_STATS: `${API_BASE_URL}/api/admin/stats`,
   ADMIN_USERS: `${API_BASE_URL}/api/admin/users`,
+  ADMIN_LOGINS: `${API_BASE_URL}/api/admin/logins`,
+  
+  // Payment endpoints
+  PAYMENT_INITIATE: `${API_BASE_URL}/api/payments/initiate`,
+  PAYMENT_STATUS: `${API_BASE_URL}/api/payments`, // /:paymentRef/status
+  PAYMENT_WEBHOOK: `${API_BASE_URL}/api/payments/webhook`,
+
+  // Omra endpoints - PUBLIC
+  OMRA_OFFERS: `${API_BASE_URL}/api/omra/offers`,
+  OMRA_OFFER_DETAIL: (id) => `${API_BASE_URL}/api/omra/offers/${id}`,
+  OMRA_RESERVE: (id) => `${API_BASE_URL}/api/omra/offers/${id}/reserve`,
+
+  // Omra endpoints - ADMIN
+  OMRA_ADMIN_STATS: `${API_BASE_URL}/api/omra/admin/stats`,
+  OMRA_ADMIN_OFFERS: `${API_BASE_URL}/api/omra/admin/offers`,
+  OMRA_ADMIN_OFFER: (id) => `${API_BASE_URL}/api/omra/admin/offers/${id}`,
+  OMRA_ADMIN_RESERVATIONS: `${API_BASE_URL}/api/omra/admin/reservations`,
+  OMRA_ADMIN_RESERVATION_STATUS: (id) => `${API_BASE_URL}/api/omra/admin/reservations/${id}/status`,
 };
 
 // Helper function to get endpoint with dynamic parameters

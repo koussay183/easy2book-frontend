@@ -32,8 +32,8 @@ const Footer = () => {
           </div>
 
           {/* Quick Links */}
-          <div>
-            <h3 className="text-white font-bold mb-4 text-lg flex items-center">
+          <div className={isRTL ? 'text-right' : 'text-left'}>
+            <h3 className={`text-white font-bold mb-4 text-lg flex items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
               <span className={`w-1 h-6 bg-white ${isRTL ? 'ml-2' : 'mr-2'}`}></span>
               {t.footer.quickLinks.title}
             </h3>
@@ -60,15 +60,15 @@ const Footer = () => {
           </div>
 
           {/* Contact */}
-          <div>
-            <h3 className="text-white font-bold mb-4 text-lg flex items-center">
+          <div className={isRTL ? 'text-right' : 'text-left'}>
+            <h3 className={`text-white font-bold mb-4 text-lg flex items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
               <span className={`w-1 h-6 bg-white ${isRTL ? 'ml-2' : 'mr-2'}`}></span>
               {t.footer.contact.title}
             </h3>
             <div className="flex flex-col gap-3">
               <a 
                 href="tel:+216XXXXXXXX" 
-                className="flex items-center gap-3 text-white/80 hover:text-white transition-colors group"
+                className={`flex items-center gap-3 text-white/80 hover:text-white transition-colors group ${isRTL ? 'flex-row-reverse' : ''}`}
               >
                 <div className="bg-white/20 p-2 rounded-lg group-hover:bg-white/30 transition-colors">
                   <Phone size={18} className="text-white" />
@@ -77,14 +77,14 @@ const Footer = () => {
               </a>
               <a 
                 href="mailto:info@easy2book.tn" 
-                className="flex items-center gap-3 text-white/80 hover:text-white transition-colors group"
+                className={`flex items-center gap-3 text-white/80 hover:text-white transition-colors group ${isRTL ? 'flex-row-reverse' : ''}`}
               >
                 <div className="bg-white/20 p-2 rounded-lg group-hover:bg-white/30 transition-colors">
                   <Mail size={18} className="text-white" />
                 </div>
                 <span>info@easy2book.tn</span>
               </a>
-              <div className="flex items-center gap-3 text-white/80">
+              <div className={`flex items-center gap-3 text-white/80 ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <div className="bg-white/20 p-2 rounded-lg">
                   <MapPin size={18} className="text-white" />
                 </div>
@@ -94,12 +94,12 @@ const Footer = () => {
           </div>
 
           {/* Social Media */}
-          <div>
-            <h3 className="text-white font-bold mb-4 text-lg flex items-center">
+          <div className={isRTL ? 'text-right' : 'text-left'}>
+            <h3 className={`text-white font-bold mb-4 text-lg flex items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
               <span className={`w-1 h-6 bg-white ${isRTL ? 'ml-2' : 'mr-2'}`}></span>
               {t.footer.social.title}
             </h3>
-            <div className="flex gap-3">
+            <div className={`flex gap-3 ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
               <a 
                 href="#" 
                 className="bg-white/20 text-white p-3 rounded-lg hover:bg-white hover:text-primary-600 hover:scale-110 transition-all duration-300 group"
@@ -121,13 +121,13 @@ const Footer = () => {
             </div>
             <div className="mt-6">
               <p className="text-sm text-white/90 mb-2">{t.footer.newsletter.title}</p>
-              <div className="flex gap-2">
+              <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <input 
                   type="email" 
                   placeholder={t.footer.newsletter.placeholder} 
                   className={`flex-1 px-3 py-2 rounded-lg bg-white/90 border border-white/30 focus:border-white focus:outline-none focus:ring-2 focus:ring-white/50 text-sm text-gray-700 ${isRTL ? 'text-right' : 'text-left'}`}
                 />
-                <button className="bg-white text-primary-600 hover:bg-white/90 px-4 py-2 rounded-lg font-semibold transition-colors text-sm">
+                <button className="bg-white text-primary-600 hover:bg-white/90 px-4 py-2 rounded-lg font-semibold transition-colors text-sm whitespace-nowrap">
                   {t.footer.newsletter.button}
                 </button>
               </div>

@@ -50,7 +50,7 @@ const Hotels = () => {
   const [filters, setFilters] = useState({
     priceRange: [0, 5000],
     starRating: [],
-    sortBy: 'recommended',
+    sortBy: 'price-low',
     facilities: [],
     themes: [],
     boardingTypes: []
@@ -60,7 +60,7 @@ const Hotels = () => {
   const [tempFilters, setTempFilters] = useState({
     priceRange: [0, 5000],
     starRating: [],
-    sortBy: 'recommended',
+    sortBy: 'price-low',
     facilities: [],
     themes: [],
     boardingTypes: []
@@ -283,7 +283,7 @@ const Hotels = () => {
     setTempFilters({
       priceRange: [0, 5000],
       starRating: [],
-      sortBy: 'recommended',
+      sortBy: 'price-low',
       facilities: [],
       themes: [],
       boardingTypes: []
@@ -294,7 +294,7 @@ const Hotels = () => {
     const clearedFilters = {
       priceRange: [0, 5000],
       starRating: [],
-      sortBy: 'recommended',
+      sortBy: 'price-low',
       facilities: [],
       themes: [],
       boardingTypes: []
@@ -340,172 +340,167 @@ const Hotels = () => {
 
   return (
     <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* Decorative Separator */}
-      <div className="h-1 bg-gradient-to-r from-primary-600 via-secondary-400 to-primary-600"></div>
-      
-      {/* Header */}
-      <div className="bg-gradient-to-r from-primary-700 to-primary-800 text-white shadow-lg sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-2 md:py-3">
-          <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-            {/* Back Button - Left */}
+
+      {/* ── Sticky Top Bar ── */}
+      <div className="sticky top-0 z-50 bg-primary-700 text-white shadow-md">
+        <div className="container mx-auto px-4 py-3">
+          <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+
+            {/* Back */}
             <button
               onClick={() => navigate('/')}
-              className={`flex items-center gap-1.5 text-white/90 hover:text-white transition-colors ${isRTL ? 'flex-row-reverse' : ''}`}
+              className={`flex items-center gap-1.5 text-white/90 hover:text-white transition-colors flex-shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}
             >
-              <ArrowLeft size={16} className={`md:w-[18px] md:h-[18px] ${isRTL ? 'rotate-180' : ''}`} />
-              <span className="text-xs md:text-sm font-medium">
+              <ArrowLeft size={18} className={isRTL ? 'rotate-180' : ''} />
+              <span className="text-sm font-medium hidden sm:inline">
                 {language === 'fr' ? 'Retour' : language === 'ar' ? 'رجوع' : 'Back'}
               </span>
             </button>
-            
-            {/* All Info - Right Side */}
-            <div className={`flex flex-wrap items-center gap-2 text-xs md:text-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
-              {!loading && !error && (
-                <>
-                  <div className="bg-white/20 backdrop-blur-sm px-3 md:px-4 py-1.5 md:py-2 rounded-lg">
-                    <span className="font-bold text-base md:text-lg">{filteredHotels.length}</span>
-                    <span className="text-xs md:text-sm ml-1 md:ml-2">
-                      {language === 'fr' ? 'hôtels trouvés' : language === 'ar' ? 'فندق' : 'hotels found'}
-                    </span>
-                  </div>
-                  <span className="opacity-50 hidden md:inline">•</span>
-                </>
-              )}
+
+            {/* Search summary */}
+            <div className={`flex-1 flex items-center gap-2 text-sm text-white/85 min-w-0 overflow-hidden ${isRTL ? 'flex-row-reverse' : ''}`}>
               {cityName && (
-                <div className={`flex items-center gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <MapPin size={12} className="opacity-80 md:w-3.5 md:h-3.5" />
-                  <span className="font-medium">{cityName}</span>
-                </div>
+                <span className="font-semibold text-white truncate">{cityName}</span>
               )}
               {checkIn && checkOut && (
                 <>
-                  <span className="opacity-50 hidden md:inline">•</span>
-                  <div className={`flex items-center gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <Calendar size={12} className="opacity-80 md:w-3.5 md:h-3.5" />
-                    <span className="hidden md:inline">{formatDate(checkIn)} - {formatDate(checkOut)}</span>
-                    <span className="md:hidden">
-                    {(() => {
-                      const start = new Date(checkIn);
-                      const end = new Date(checkOut);
-                      const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-                      return language === 'fr' 
-                        ? `${nights}N` 
-                        : language === 'ar' 
-                        ? `${nights}ل`
-                        : `${nights}N`;
-                    })()}
-                    </span>
-                  </div>
-                  <span className="opacity-50 hidden md:inline">•</span>
-                  <div className="bg-white/20 px-2 py-0.5 rounded-md font-semibold hidden md:block">
-                    {(() => {
-                      const start = new Date(checkIn);
-                      const end = new Date(checkOut);
-                      const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-                      return language === 'fr' 
-                        ? `${nights} ${nights === 1 ? 'nuit' : 'nuits'}` 
-                        : language === 'ar' 
-                        ? `${nights} ${nights === 1 ? 'ليلة' : 'ليالي'}`
-                        : `${nights} ${nights === 1 ? 'night' : 'nights'}`;
-                    })()}
-                  </div>
+                  <span className="opacity-40 flex-shrink-0">·</span>
+                  <span className="whitespace-nowrap flex-shrink-0">
+                    {formatDate(checkIn)} – {formatDate(checkOut)}
+                  </span>
+                  {(() => {
+                    const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
+                    return (
+                      <>
+                        <span className="opacity-40 flex-shrink-0 hidden sm:inline">·</span>
+                        <span className="hidden sm:inline flex-shrink-0 bg-white/15 px-2 py-0.5 rounded-full text-xs font-medium">
+                          {language === 'fr'
+                            ? `${nights} ${nights === 1 ? 'nuit' : 'nuits'}`
+                            : language === 'ar'
+                            ? `${nights} ${nights === 1 ? 'ليلة' : 'ليالي'}`
+                            : `${nights} ${nights === 1 ? 'night' : 'nights'}`}
+                        </span>
+                      </>
+                    );
+                  })()}
                 </>
               )}
-              <span className="opacity-50 hidden md:inline">•</span>
-              <div className={`flex items-center gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <Users size={12} className="opacity-80 md:w-3.5 md:h-3.5" />
-                <span>
-                  {rooms} {language === 'fr' ? `chambre${rooms > 1 ? 's' : ''}` : language === 'ar' ? 'غرف' : `room${rooms > 1 ? 's' : ''}`} • {totalAdults} {language === 'fr' ? 'adulte(s)' : language === 'ar' ? 'بالغين' : 'adult(s)'}
-                  {totalChildren > 0 && `, ${totalChildren} ${language === 'fr' ? 'enfant(s)' : language === 'ar' ? 'أطفال' : 'child(ren)'}`}
-                </span>
-              </div>
+              <span className="opacity-40 flex-shrink-0 hidden sm:inline">·</span>
+              <span className="hidden sm:inline flex-shrink-0 whitespace-nowrap">
+                {rooms} {language === 'fr' ? `ch.` : language === 'ar' ? 'غ' : 'rm'}{' '}
+                · {totalAdults} {language === 'fr' ? 'adulte(s)' : language === 'ar' ? 'بالغ' : 'adult(s)'}
+                {totalChildren > 0 && `, ${totalChildren} ${language === 'fr' ? 'enf.' : language === 'ar' ? 'أطفال' : 'child(ren)'}`}
+              </span>
             </div>
+
+            {/* Hotels count */}
+            {!loading && !error && (
+              <div className="flex-shrink-0 bg-white/15 px-3 py-1 rounded-full text-sm font-semibold whitespace-nowrap">
+                {filteredHotels.length} {language === 'fr' ? 'hôtels' : language === 'ar' ? 'فنادق' : 'hotels'}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Compact Search Bar */}
-      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-[57px] z-30">
-        <div className="container mx-auto px-4 lg:px-6 py-3">
-          <div className="flex flex-wrap items-center gap-2">
+      {/* ── Search & Filter Bar ── */}
+      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-[49px] z-40">
+        <div className="container mx-auto px-4 py-3">
+          <div className={`flex items-center gap-2 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
+
             {/* Destination */}
-            <div className="flex-1 min-w-[180px]">
+            <div className="flex-1 min-w-[140px]">
               <div className="relative">
-                <MapPin className={`absolute top-2.5 text-gray-400 ${isRTL ? 'right-3' : 'left-3'}`} size={16} />
+                <MapPin size={15} className={`absolute top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none ${isRTL ? 'right-3' : 'left-3'}`} />
                 <input
                   type="text"
                   value={searchCityName}
                   onChange={(e) => setSearchCityName(e.target.value)}
-                  className={`w-full border border-gray-300 rounded-lg py-2 text-gray-900 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${isRTL ? 'pr-10 pl-3 text-right' : 'pl-10 pr-3'}`}
+                  className={`w-full border border-gray-200 rounded-xl py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-600 ${isRTL ? 'pr-9 pl-3 text-right' : 'pl-9 pr-3'}`}
                   placeholder={language === 'fr' ? 'Destination' : language === 'ar' ? 'الوجهة' : 'Destination'}
                 />
               </div>
             </div>
-            
-            {/* Check-in */}
-            <div className="w-[140px]">
-              <input
-                type="date"
-                value={searchCheckIn}
-                onChange={(e) => setSearchCheckIn(e.target.value)}
-                className={`w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${isRTL ? 'text-right' : ''}`}
-              />
-            </div>
-            
-            {/* Check-out */}
-            <div className="w-[140px]">
-              <input
-                type="date"
-                value={searchCheckOut}
-                onChange={(e) => setSearchCheckOut(e.target.value)}
-                className={`w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${isRTL ? 'text-right' : ''}`}
-              />
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={handleSearch}
-                  className="bg-secondary-500 hover:bg-secondary-600 text-white rounded-lg py-2 px-4 font-medium transition-all flex items-center gap-1.5 text-sm"
-                >
-                  <Search size={16} />
-                  <span className="hidden sm:inline">{language === 'fr' ? 'Modifier' : language === 'ar' ? 'تعديل' : 'Modify'}</span>
-                </button>
 
-                <button
-                  onClick={() => setShowGuestSelector(true)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-2 px-4 font-medium transition-all flex items-center gap-1.5 text-sm"
-                >
-                  <Users size={16} />
-                  <span className="hidden sm:inline">{language === 'fr' ? 'Configuration' : language === 'ar' ? 'التكوين' : 'Rooms'}</span>
-                </button>
-                
-                <button
-                  onClick={openFilterModal}
-                  className="bg-primary-600 hover:bg-primary-700 text-white rounded-lg py-2 px-4 font-medium transition-all flex items-center gap-1.5 text-sm relative"
-                >
-                  <SlidersHorizontal size={16} />
-                  <span className="hidden sm:inline">
-                    {language === 'fr' ? 'Filtres' : language === 'ar' ? 'الفلاتر' : 'Filters'}
-                  </span>
-                  {(filters.starRating.length > 0 || filters.boardingTypes.length > 0 || filters.themes.length > 0 || filters.priceRange[1] < 5000) && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-secondary-500 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                      {filters.starRating.length + filters.boardingTypes.length + filters.themes.length + (filters.priceRange[1] < 5000 ? 1 : 0)}
-                    </span>
-                  )}
-                </button>
+            {/* Check-in */}
+            <div className="w-[130px]">
+              <div className="relative">
+                <Calendar size={14} className={`absolute top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none ${isRTL ? 'right-3' : 'left-3'}`} />
+                <input
+                  type="date"
+                  value={searchCheckIn}
+                  onChange={(e) => setSearchCheckIn(e.target.value)}
+                  className={`w-full border border-gray-200 rounded-xl py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-600 ${isRTL ? 'pr-9 pl-2' : 'pl-9 pr-2'}`}
+                />
               </div>
             </div>
+
+            {/* Check-out */}
+            <div className="w-[130px]">
+              <div className="relative">
+                <Calendar size={14} className={`absolute top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none ${isRTL ? 'right-3' : 'left-3'}`} />
+                <input
+                  type="date"
+                  value={searchCheckOut}
+                  onChange={(e) => setSearchCheckOut(e.target.value)}
+                  className={`w-full border border-gray-200 rounded-xl py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-600 ${isRTL ? 'pr-9 pl-2' : 'pl-9 pr-2'}`}
+                />
+              </div>
+            </div>
+
+            {/* Guests */}
+            <button
+              onClick={() => setShowGuestSelector(true)}
+              className={`flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl py-2.5 px-3 text-sm text-gray-700 font-medium transition-colors whitespace-nowrap ${isRTL ? 'flex-row-reverse' : ''}`}
+            >
+              <Users size={15} className="text-gray-500 flex-shrink-0" />
+              <span>
+                {rooms} {language === 'fr' ? 'ch.' : language === 'ar' ? 'غ' : 'rm'}{' '}
+                · {totalAdults} {language === 'fr' ? 'adulte(s)' : language === 'ar' ? 'بالغ' : 'adult(s)'}
+              </span>
+            </button>
+
+            {/* Search */}
+            <button
+              onClick={handleSearch}
+              className="bg-primary-700 hover:bg-primary-800 text-white rounded-xl py-2.5 px-4 font-semibold text-sm transition-colors flex items-center gap-2 flex-shrink-0"
+            >
+              <Search size={16} />
+              <span className="hidden sm:inline">
+                {language === 'fr' ? 'Rechercher' : language === 'ar' ? 'بحث' : 'Search'}
+              </span>
+            </button>
+
+            {/* Filters */}
+            <button
+              onClick={openFilterModal}
+              className={`relative flex items-center gap-2 border rounded-xl py-2.5 px-4 font-semibold text-sm transition-colors flex-shrink-0 ${
+                (filters.starRating.length > 0 || filters.boardingTypes.length > 0 || filters.themes.length > 0 || filters.priceRange[1] < 5000)
+                  ? 'bg-primary-50 border-primary-300 text-primary-700'
+                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <SlidersHorizontal size={15} />
+              <span className="hidden sm:inline">
+                {language === 'fr' ? 'Filtres' : language === 'ar' ? 'فلاتر' : 'Filters'}
+              </span>
+              {(filters.starRating.length > 0 || filters.boardingTypes.length > 0 || filters.themes.length > 0 || filters.priceRange[1] < 5000) && (
+                <span className="bg-primary-700 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  {filters.starRating.length + filters.boardingTypes.length + filters.themes.length + (filters.priceRange[1] < 5000 ? 1 : 0)}
+                </span>
+              )}
+            </button>
           </div>
         </div>
+      </div>
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
         {/* Active Filters Summary */}
-        {(filters.starRating.length > 0 || filters.boardingTypes.length > 0 || filters.themes.length > 0 || filters.priceRange[1] < 5000 || filters.sortBy !== 'recommended') && (
+        {(filters.starRating.length > 0 || filters.boardingTypes.length > 0 || filters.themes.length > 0 || filters.priceRange[1] < 5000 || filters.sortBy !== 'price-low') && (
           <div className="mb-6 flex items-center justify-between bg-white rounded-xl shadow-md p-4">
             <div className={`flex items-center gap-2 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
-              {filters.sortBy !== 'recommended' && (
+              {filters.sortBy !== 'price-low' && (
                 <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-medium">
                   {filters.sortBy === 'price-low' ? (language === 'fr' ? 'Prix ↑' : 'Price ↑') :
                    filters.sortBy === 'price-high' ? (language === 'fr' ? 'Prix ↓' : 'Price ↓') :

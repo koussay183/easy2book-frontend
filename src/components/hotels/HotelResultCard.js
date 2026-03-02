@@ -94,7 +94,8 @@ const HotelResultCard = ({ hotel, checkIn, checkOut, roomsConfig }) => {
   const isTopSale = hotel.IsTopSale || false;
   const hasPromo = hotel.HasPromo || minimumPrice && minimumPrice < 2000;
 
-  const totalPrice = minimumPrice * numberOfNights;
+  // API already returns the total price for the entire stay, no need to multiply
+  const totalPrice = minimumPrice;
 
   const handleViewDetails = () => {
     const params = new URLSearchParams();
@@ -124,7 +125,7 @@ const HotelResultCard = ({ hotel, checkIn, checkOut, roomsConfig }) => {
           />
           
           {/* Badges Overlay */}
-          <div className="absolute top-3 left-3 flex flex-col gap-2">
+          <div className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} flex flex-col gap-2`}>
             {hotel.Category && (
               <span className="bg-gradient-to-r from-primary-700 to-primary-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg backdrop-blur-sm">
                 <Sparkles size={14} />
@@ -146,7 +147,7 @@ const HotelResultCard = ({ hotel, checkIn, checkOut, roomsConfig }) => {
           </div>
 
           {/* Free Cancellation Badge */}
-          <div className="absolute top-3 right-3">
+          <div className={`absolute top-3 ${isRTL ? 'left-3' : 'right-3'}`}>
             <span className="bg-white/95 backdrop-blur-sm text-primary-700 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border border-primary-200">
               ✓ {language === 'fr' ? 'Annulation gratuite' : language === 'ar' ? 'إلغاء مجاني' : 'Free Cancellation'}
             </span>
@@ -154,7 +155,7 @@ const HotelResultCard = ({ hotel, checkIn, checkOut, roomsConfig }) => {
 
           {/* Price Overlay - Mobile Only */}
           {minimumPrice && (
-            <div className="lg:hidden absolute bottom-3 right-3 bg-white/95 backdrop-blur-sm px-3 py-2 rounded-xl shadow-lg border-2 border-primary-200">
+            <div className={`lg:hidden absolute bottom-3 ${isRTL ? 'left-3' : 'right-3'} bg-white/95 backdrop-blur-sm px-3 py-2 rounded-xl shadow-lg border-2 border-primary-200`}>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold text-primary-700">
                   {totalPrice.toFixed(2)}
@@ -173,8 +174,8 @@ const HotelResultCard = ({ hotel, checkIn, checkOut, roomsConfig }) => {
         {/* Content Section */}
         <div className="flex-1 flex flex-col" dir={isRTL ? 'rtl' : 'ltr'}>
           {/* Header Section */}
-          <div className="p-4 pb-3 border-b border-gray-100">
-            <div className="flex items-start justify-between gap-3 mb-2">
+          <div className={`p-4 pb-3 border-b border-gray-100 ${isRTL ? 'text-right' : 'text-left'}`}>
+            <div className={`flex items-start justify-between gap-3 mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
               <h3 className="text-xl lg:text-2xl font-bold text-gray-900 hover:text-primary-700 transition-colors leading-tight flex-1">
                 {hotel.Name}
               </h3>
@@ -277,12 +278,12 @@ const HotelResultCard = ({ hotel, checkIn, checkOut, roomsConfig }) => {
 
           {/* Footer Section */}
           <div className="p-4 bg-gradient-to-br from-gray-50 to-white border-t-2 border-gray-100 mt-auto">
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-end justify-between gap-4">
+            <div className={`flex flex-col lg:flex-row items-stretch lg:items-end justify-between gap-4 ${isRTL ? 'lg:flex-row-reverse' : ''}`}>
               {/* CTA Button */}
               <div className="flex-1 lg:order-1">
                 <button
                   onClick={handleViewDetails}
-                  className="w-full bg-gradient-to-r from-primary-700 to-primary-800 hover:from-primary-800 hover:to-primary-900 text-white px-6 py-4 rounded-xl font-bold text-sm transition-all shadow-md hover:shadow-xl transform hover:-translate-y-0.5 uppercase tracking-wide flex items-center justify-center gap-2"
+                  className={`w-full bg-gradient-to-r from-primary-700 to-primary-800 hover:from-primary-800 hover:to-primary-900 text-white px-6 py-4 rounded-xl font-bold text-sm transition-all shadow-md hover:shadow-xl transform hover:-translate-y-0.5 uppercase tracking-wide flex items-center justify-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}
                 >
                   <span>{language === 'fr' ? 'VOIR CHAMBRES & TARIFS' : language === 'ar' ? 'عرض الغرف والأسعار' : 'VIEW ROOMS & RATES'}</span>
                   <ChevronRight size={18} className={isRTL ? 'rotate-180' : ''} />
