@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Star, ChevronRight, Wifi, Car, Utensils, Waves, Coffee, Wind, Dumbbell, Droplets, Users, Palmtree, Baby, Heart, TreePine, PartyPopper, Briefcase, Home, Sparkles, TrendingUp, Tag, AlertCircle } from 'lucide-react';
+import { MapPin, Star, ChevronRight, Wifi, Car, Utensils, Waves, Coffee, Wind, Dumbbell, Droplets, Users, Palmtree, Baby, Heart, TreePine, PartyPopper, Briefcase, Home, Sparkles, TrendingUp, Tag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -90,9 +90,8 @@ const HotelResultCard = ({ hotel, checkIn, checkOut, roomsConfig }) => {
   const currency = getCurrency();
 
   // Check if this is a new or special hotel
-  const isNewHotel = hotel.IsNew || false;
   const isTopSale = hotel.IsTopSale || false;
-  const hasPromo = hotel.HasPromo || minimumPrice && minimumPrice < 2000;
+  const hasPromo = hotel.HasPromo || (minimumPrice != null && minimumPrice < 2000);
 
   // API already returns the total price for the entire stay, no need to multiply
   const totalPrice = minimumPrice;

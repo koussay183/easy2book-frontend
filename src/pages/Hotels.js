@@ -1,6 +1,6 @@
  import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, Users, ArrowLeft, Loader2, AlertCircle, Hotel as HotelIcon, Search, SlidersHorizontal, Star, DollarSign, Wifi, Utensils, X, Check } from 'lucide-react';
+import { MapPin, Calendar, Users, ArrowLeft, Loader2, AlertCircle, Hotel as HotelIcon, Search, SlidersHorizontal, Star, DollarSign, Utensils, X, Check } from 'lucide-react';
 import HotelResultCard from '../components/hotels/HotelResultCard';
 import GuestSelector from '../components/landing/GuestSelector';
 import { useLanguage } from '../context/LanguageContext';
@@ -10,7 +10,7 @@ const Hotels = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { language } = useLanguage();
-  const { hotels, loading, error, fetchHotels, searchParams: cachedSearchParams } = useHotels();
+  const { hotels, loading, error, fetchHotels } = useHotels();
   const isRTL = language === 'ar';
 
   // Get search parameters
@@ -36,7 +36,6 @@ const Hotels = () => {
 
   const [filteredHotels, setFilteredHotels] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [showSearchModal, setShowSearchModal] = useState(false);
   const [showGuestSelector, setShowGuestSelector] = useState(false);
 
   // Search state - Initialize with URL params
@@ -73,7 +72,7 @@ const Hotels = () => {
     setSearchCheckOut(checkOut || '');
     setSearchRooms(Number(rooms));
     setSearchRoomsConfig(roomsConfig);
-  }, [cityName, checkIn, checkOut, rooms, roomsConfigParam]);
+  }, [cityName, checkIn, checkOut, rooms, roomsConfigParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const loadHotels = async () => {
@@ -92,7 +91,7 @@ const Hotels = () => {
     };
 
     loadHotels();
-  }, [cityId, checkIn, checkOut, rooms, roomsConfigParam, fetchHotels, cityName]);
+  }, [cityId, checkIn, checkOut, rooms, roomsConfigParam, fetchHotels, cityName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Apply filters whenever filters or hotels change
   useEffect(() => {
@@ -252,15 +251,6 @@ const Hotels = () => {
     }));
   };
 
-  const toggleFacility = (facility) => {
-    setTempFilters(prev => ({
-      ...prev,
-      facilities: prev.facilities.includes(facility)
-        ? prev.facilities.filter(f => f !== facility)
-        : [...prev.facilities, facility]
-    }));
-  };
-
   const toggleTheme = (theme) => {
     setTempFilters(prev => ({
       ...prev,
@@ -312,11 +302,6 @@ const Hotels = () => {
     setTempFilters(filters); // Copy current filters to temp
     setShowFilters(true);
   };
-
-  // Get unique facilities, themes, and boarding types from all hotels
-  const allFacilities = [...new Set(
-    hotels.flatMap(h => h.Facilities?.map(f => f.Title) || [])
-  )].sort();
 
   const allThemes = [...new Set(
     hotels.flatMap(h => h.Theme || [])
