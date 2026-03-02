@@ -349,7 +349,7 @@ export default function MyBookings() {
               {/* Ref + status */}
               <div className={`flex items-start justify-between gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <div className={isRTL ? 'text-right' : ''}>
-                  <p className="text-[10px] text-gray-400 mb-0.5">{t.refLabel}</p>
+                  <p className="text-xs text-gray-400 mb-0.5">{t.refLabel}</p>
                   <p className="text-xs font-mono font-bold text-gray-700">{selected._id}</p>
                 </div>
                 <div className={`flex flex-col gap-1.5 ${isRTL ? 'items-start' : 'items-end'}`}>

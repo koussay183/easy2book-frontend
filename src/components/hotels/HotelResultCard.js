@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Star, ChevronRight, Wifi, Car, Utensils, Waves, Coffee, Wind, Dumbbell, Droplets, Users, Phone, Palmtree, Baby, Heart, TreePine, PartyPopper, Briefcase, Home, Sparkles, TrendingUp, Tag, AlertCircle } from 'lucide-react';
+import { MapPin, Star, ChevronRight, Wifi, Car, Utensils, Waves, Coffee, Wind, Dumbbell, Droplets, Users, Palmtree, Baby, Heart, TreePine, PartyPopper, Briefcase, Home, Sparkles, TrendingUp, Tag, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 

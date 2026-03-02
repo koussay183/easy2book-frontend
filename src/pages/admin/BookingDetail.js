@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
-  ArrowLeft, Hotel, Calendar, Clock, User, Users, Mail, Phone,
-  CreditCard, DollarSign, FileText, CheckCircle, XCircle,
+  ArrowLeft, Hotel, Clock, User, Users, Mail, Phone,
+  CreditCard, FileText, CheckCircle, XCircle,
   AlertCircle, RefreshCw, Download, Printer, Building2,
-  MapPin, Star, Utensils, Check, X, Edit
+  MapPin, Star, Utensils, Check, Edit
 } from 'lucide-react';
 import { API_ENDPOINTS, API_BASE_URL } from '../../config/api';
 

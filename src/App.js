@@ -4,7 +4,6 @@ import { AuthProvider } from './context/AuthContext';
 import { HotelsProvider } from './context/HotelsContext';
 import Layout from './components/Layout';
 import Loader from './components/Loader';
-import ProtectedRoute from './components/ProtectedRoute';
 import useVisitorSocket from './hooks/useVisitorSocket';
 
 // Pages

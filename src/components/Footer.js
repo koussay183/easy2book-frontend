@@ -100,20 +100,26 @@ const Footer = () => {
               {t.footer.social.title}
             </h3>
             <div className={`flex gap-3 ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
-              <a 
-                href="#" 
+              <a
+                href="https://facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="bg-white/20 text-white p-3 rounded-lg hover:bg-white hover:text-primary-600 hover:scale-110 transition-all duration-300 group"
               >
                 <Facebook size={20} />
               </a>
-              <a 
-                href="#" 
+              <a
+                href="https://instagram.com"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="bg-white/20 text-white p-3 rounded-lg hover:bg-white hover:text-primary-600 hover:scale-110 transition-all duration-300 group"
               >
                 <Instagram size={20} />
               </a>
-              <a 
-                href="#" 
+              <a
+                href="https://linkedin.com"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="bg-white/20 text-white p-3 rounded-lg hover:bg-white hover:text-primary-600 hover:scale-110 transition-all duration-300 group"
               >
                 <Linkedin size={20} />

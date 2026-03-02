@@ -131,8 +131,10 @@ export const pollPaymentStatus = async (paymentRef, maxAttempts = 30, interval =
   return poll();
 };
 
-export default {
+const paymentService = {
   initiatePayment,
   getPaymentStatus,
   pollPaymentStatus
 };
+
+export default paymentService;

@@ -19,7 +19,7 @@ const PaymentCallback = () => {
 
   useEffect(() => {
     validatePayment();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const validatePayment = async () => {
     try {
