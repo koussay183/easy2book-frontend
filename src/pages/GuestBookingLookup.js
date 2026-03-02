@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Search, Mail, FileText, Loader2, Calendar, 
-  Hotel, MapPin, DollarSign, Users, CheckCircle, 
+  Search, Mail, FileText, Loader2, Calendar,
+  Hotel, DollarSign, Users, CheckCircle,
   XCircle, AlertCircle, Clock, ArrowLeft
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';

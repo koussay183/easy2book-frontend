@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, User, Mail, Phone, CreditCard, Building2, CheckCircle2,
-  Calendar, Users, Home, Loader2, MapPin, Star, Info,
+  Calendar, Home, Loader2, MapPin, Star, Info,
   Shield, Moon, ChevronDown, ChevronUp, CheckCircle
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';

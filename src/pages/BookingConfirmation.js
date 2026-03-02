@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
-  CheckCircle, Home, Mail, Phone, Calendar, Users, CreditCard, 
-  Building2, Copy, ExternalLink, ArrowRight, Star, MapPin, Clock,
+  CheckCircle, Home, Mail, Phone, Calendar, Users, CreditCard,
+  Building2, Copy, ExternalLink, ArrowRight, Clock,
   FileText, User, Utensils
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';

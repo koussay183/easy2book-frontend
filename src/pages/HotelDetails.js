@@ -4,11 +4,11 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { 
-  ArrowLeft, MapPin, Star, Phone, Mail, Globe, Wifi, Car, Utensils, 
+  ArrowLeft, MapPin, Star, Phone, Mail, Wifi, Car, Utensils, 
   Waves, Coffee, Wind, Dumbbell, Droplets, Users, Palmtree, Baby, 
   Heart, TreePine, PartyPopper, Briefcase, Home, ChevronDown, ChevronUp,
   Calendar, Check, X, Info, DollarSign, Loader2, AlertCircle, Navigation,
-  Clock, Shield, Award, Image as ImageIcon, ArrowDown, ChevronRight, CheckCircle2
+  Clock, Shield, Award, Image as ImageIcon, ChevronRight, CheckCircle2
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useHotels } from '../context/HotelsContext';
@@ -28,7 +28,7 @@ const HotelDetails = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { language } = useLanguage();
-  const { getHotelById, fetchHotels, searchParams: cachedSearchParams } = useHotels();
+  const { getHotelById, searchParams: cachedSearchParams } = useHotels();
   const isRTL = language === 'ar';
 
   // Get search context - prioritize URL params, fallback to cached
@@ -211,6 +211,7 @@ const HotelDetails = () => {
         const urlCheckOut = searchParams.get('checkOut') || toISO(tomorrow);
 
         // Always attempt the fetch with real or default dates
+        // eslint-disable-next-line no-lone-blocks
         {
           try {
             // Parse roomsConfig from URL (default: 1 room, 2 adults)
@@ -415,15 +416,6 @@ const HotelDetails = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleContinueToGuestInfo = () => {
-    if (!selectedRoom) {
-      alert(language === 'fr' ? 'Veuillez sélectionner une chambre' : 'Please select a room');
-      return;
-    }
-    setBookingStep(3);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   const handleContinueToConfirmation = () => {
     if (!validateGuestInfo()) {
       alert(language === 'fr' ? 'Veuillez remplir tous les champs correctement' : 'Please fill all fields correctly');
@@ -626,8 +618,6 @@ const HotelDetails = () => {
       : tag.Image
   }));
   const themes = displayData.Theme || hotel.Theme || [];
-  const options = displayData.Option || [];
-  const boardings = displayData.Boarding || [];
   const starRating = displayData.Category?.Star || hotel.Category?.Star || 0;
   const currency = hotel.SearchData?.Currency || 'TND';
   const longDescription = displayData.LongDescription || '';
@@ -637,7 +627,6 @@ const HotelDetails = () => {
   const email = displayData.Email || '';
   const phone = displayData.Phone || '';
   const address = displayData.Adress || hotel.Adress || hotel.Address || '';
-  const hotelType = displayData.Type || '';
   const cityName = displayData.City?.Name || hotel.City?.Name || '';
   const countryName = displayData.City?.Country?.Name || hotel.City?.Country?.Name || '';
   const latitude = displayData.Localization?.Latitude || hotel.Localization?.Latitude || displayData.Latitude || hotel.Latitude;
@@ -657,22 +646,6 @@ const HotelDetails = () => {
     });
     if (minPrice !== Infinity) minimumPrice = minPrice;
   }
-
-  // Helper function to get room type label based on number of people
-  const getRoomTypeLabel = (adults, childrenCount) => {
-    const totalPeople = adults + childrenCount;
-    if (totalPeople === 1) {
-      return language === 'fr' ? 'Simple' : language === 'ar' ? 'فردية' : 'Single';
-    } else if (totalPeople === 2) {
-      return language === 'fr' ? 'Double' : language === 'ar' ? 'مزدوجة' : 'Double';
-    } else if (totalPeople === 3) {
-      return language === 'fr' ? 'Triple' : language === 'ar' ? 'ثلاثية' : 'Triple';
-    } else if (totalPeople === 4) {
-      return language === 'fr' ? 'Quadruple' : language === 'ar' ? 'رباعية' : 'Quadruple';
-    } else {
-      return `${totalPeople} ${language === 'fr' ? 'Personnes' : language === 'ar' ? 'أشخاص' : 'People'}`;
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'}>

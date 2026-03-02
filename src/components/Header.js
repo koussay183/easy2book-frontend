@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, Phone, Globe, UserCircle, User, LogOut, BookOpen } from 'lucide-react';
+import { Menu, X, Globe, UserCircle, User, LogOut, BookOpen } from 'lucide-react';
 import logo from '../assets/images/logo.png';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';

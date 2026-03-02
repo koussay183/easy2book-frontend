@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, User, Mail, Phone, CreditCard, Building2, Check, Calendar, 
+  ArrowLeft, User, Mail, Phone, CreditCard, Building2, Calendar,
   Users, Home, Loader2, MapPin, Star, Utensils, Info, Shield, Clock, CheckCircle2
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -12,11 +12,10 @@ const BookingPage = () => {
   const isRTL = language === 'ar';
   const navigate = useNavigate();
   const location = useLocation();
-  const { hotel, room, boarding, checkIn, checkOut, adults, children, rooms, nights } = location.state || {};
+  const { hotel, room, boarding, checkIn, checkOut, adults, children, nights } = location.state || {};
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1); // 1: Travelers, 2: Contact/Guest, 3: Payment
 
   // Guest information state - pre-filled with correct counts
   const [guestInfo, setGuestInfo] = useState({
@@ -61,7 +60,7 @@ const BookingPage = () => {
       updatedAdults[0] = { ...updatedAdults[0], holder: true };
       setGuestInfo({ ...guestInfo, adults: updatedAdults });
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchUserInfo = async () => {
     try {
