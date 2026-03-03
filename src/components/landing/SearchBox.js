@@ -71,6 +71,7 @@ const SearchBox = ({
   // filteredResults: [{ city, hotels: [] }]
   const [filteredResults, setFilteredResults] = useState([]);
   const [hotelsList, setHotelsList] = useState([]);
+  const [loadingHotels, setLoadingHotels] = useState(true);
   const destinationRef = useRef(null);
 
   // Date states
@@ -91,8 +92,9 @@ const SearchBox = ({
         if (Array.isArray(list)) {
           setHotelsList(list.map(h => ({ Id: h.Id, Name: h.Name, City: h.City })));
         }
+        setLoadingHotels(false);
       })
-      .catch(() => { /* silently ignore — cities still work */ });
+      .catch(() => { setLoadingHotels(false); });
   }, []);
 
   // Build grouped city→hotels results whenever query or hotelsList changes
@@ -110,8 +112,8 @@ const SearchBox = ({
     const query = destination.trim().toLowerCase();
 
     if (query === '') {
-      // Show all cities, up to 3 hotels each
-      setFilteredResults(cities.map(city => ({
+      // Show first 10 cities by default, up to 3 hotels each
+      setFilteredResults(cities.slice(0, 10).map(city => ({
         city,
         hotels: (byCity[city.id] || []).slice(0, 3)
       })));
@@ -293,6 +295,14 @@ const SearchBox = ({
                   {/* Suggestions Dropdown */}
                   {showSuggestions && filteredResults.length > 0 && (
                     <div className="absolute z-50 w-full mt-2 bg-white border border-gray-300 rounded-xl shadow-lg max-h-72 overflow-y-auto">
+                      {loadingHotels && (
+                        <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 border-b border-primary-100">
+                          <div className="w-3 h-3 rounded-full border-2 border-primary-500 border-t-transparent animate-spin flex-shrink-0" />
+                          <span className="text-[11px] text-primary-600 font-medium">
+                            {language === 'fr' ? 'Chargement des hôtels…' : language === 'ar' ? 'جاري تحميل الفنادق…' : 'Loading hotels…'}
+                          </span>
+                        </div>
+                      )}
                       {filteredResults.map(({ city, hotels }) => (
                         <div key={city.id}>
                           {/* City row */}
@@ -312,18 +322,27 @@ const SearchBox = ({
                             </div>
                           </button>
 
-                          {/* Hotels under this city */}
-                          {hotels.map(hotel => (
-                            <button
-                              key={hotel.Id}
-                              type="button"
-                              onClick={() => handleHotelSelect(hotel)}
-                              className={`w-full ${isRTL ? 'text-right pr-6 pl-4' : 'text-left pl-10 pr-4'} py-2 hover:bg-blue-50 transition-colors flex items-center gap-3 border-b border-gray-50 bg-gray-50/50`}
-                            >
-                              <Hotel size={13} className="text-gray-400 flex-shrink-0" />
-                              <span className="text-sm text-gray-700 truncate">{hotel.Name}</span>
-                            </button>
-                          ))}
+                          {/* Hotels under this city — skeletons while loading */}
+                          {loadingHotels ? (
+                            [0, 1].map(i => (
+                              <div key={i} className={`${isRTL ? 'pr-6 pl-4' : 'pl-10 pr-4'} py-2 flex items-center gap-3 border-b border-gray-50 animate-pulse`}>
+                                <div className="w-3 h-3 bg-gray-200 rounded flex-shrink-0" />
+                                <div className={`h-3 bg-gray-200 rounded ${i === 0 ? 'w-3/4' : 'w-1/2'}`} />
+                              </div>
+                            ))
+                          ) : (
+                            hotels.map(hotel => (
+                              <button
+                                key={hotel.Id}
+                                type="button"
+                                onClick={() => handleHotelSelect(hotel)}
+                                className={`w-full ${isRTL ? 'text-right pr-6 pl-4' : 'text-left pl-10 pr-4'} py-2 hover:bg-blue-50 transition-colors flex items-center gap-3 border-b border-gray-50 bg-gray-50/50`}
+                              >
+                                <Hotel size={13} className="text-gray-400 flex-shrink-0" />
+                                <span className="text-sm text-gray-700 truncate">{hotel.Name}</span>
+                              </button>
+                            ))
+                          )}
                         </div>
                       ))}
                     </div>
