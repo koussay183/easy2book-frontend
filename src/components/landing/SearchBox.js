@@ -357,14 +357,14 @@ const SearchBox = ({
                   <label className={`block text-xs font-bold text-gray-700 mb-2.5 ${isRTL ? 'text-right' : 'text-left'}`}>
                     {t.checkIn}
                   </label>
-                  <div className="relative">
+                  <div className="relative overflow-hidden">
                     <Calendar size={20} className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 text-gray-400`} />
                     <input
                       type="date"
                       value={checkInDate}
                       onChange={(e) => setCheckInDate(e.target.value)}
                       min={new Date().toISOString().split('T')[0]}
-                      className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-primary-700 focus:ring-2 focus:ring-primary-100 transition-all bg-white hover:border-gray-400`}
+                      className={`w-full min-w-0 appearance-none ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-primary-700 focus:ring-2 focus:ring-primary-100 transition-all bg-white hover:border-gray-400`}
                     />
                   </div>
                 </div>
@@ -392,14 +392,14 @@ const SearchBox = ({
                   </div>
 
                   {dateMode === 'checkout' ? (
-                    <div className="relative">
+                    <div className="relative overflow-hidden">
                       <Calendar size={20} className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 text-gray-400`} />
                       <input
                         type="date"
                         value={checkOutDate}
                         onChange={(e) => setCheckOutDate(e.target.value)}
                         min={checkInDate || new Date().toISOString().split('T')[0]}
-                        className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-primary-700 focus:ring-2 focus:ring-primary-100 transition-all bg-white hover:border-gray-400`}
+                        className={`w-full min-w-0 appearance-none ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-primary-700 focus:ring-2 focus:ring-primary-100 transition-all bg-white hover:border-gray-400`}
                       />
                     </div>
                   ) : (

@@ -71,3 +71,30 @@ code {
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
+
+/* ── iOS Safari Date Input Fix ─────────────────────────────────────────── */
+/*
+ * On iOS Safari, <input type="date"> sets an intrinsic min-width based on
+ * the date format string (e.g. "mm/dd/yyyy"), causing overflow in flex/grid
+ * containers. These rules force the input to respect its container bounds.
+ */
+input[type="date"],
+input[type="datetime-local"] {
+  /* Allow shrinking below intrinsic date-string width in flex/grid */
+  min-width: 0;
+  /* Never exceed container width */
+  max-width: 100%;
+  /* Needed for width:100% to work reliably on all WebKit versions */
+  display: block;
+}
+
+/* Align the date value text to the start (fixes misalignment on iOS) */
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.5em;
+}
+
+/* RTL: date value should align right */
+[dir="rtl"] input[type="date"]::-webkit-date-and-time-value {
+  text-align: right;
+}

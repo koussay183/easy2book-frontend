@@ -577,14 +577,14 @@ const Hotels = () => {
                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
                   {language === 'fr' ? 'Arrivée' : language === 'ar' ? 'الوصول' : 'Check-in'}
                 </div>
-                <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <div className={`flex items-center gap-2 overflow-hidden ${isRTL ? 'flex-row-reverse' : ''}`}>
                   <Calendar size={13} className="text-gray-400 flex-shrink-0" />
                   <input
                     type="date"
                     value={searchCheckIn}
                     onChange={e => setSearchCheckIn(e.target.value)}
                     min={new Date().toISOString().split('T')[0]}
-                    className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full"
+                    className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full min-w-0 appearance-none"
                   />
                 </div>
               </div>
@@ -612,14 +612,14 @@ const Hotels = () => {
                   </button>
                 </div>
                 {dateMode === 'checkout' ? (
-                  <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <div className={`flex items-center gap-2 overflow-hidden ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <Calendar size={13} className="text-gray-400 flex-shrink-0" />
                     <input
                       type="date"
                       value={searchCheckOut}
                       onChange={e => setSearchCheckOut(e.target.value)}
                       min={searchCheckIn || new Date().toISOString().split('T')[0]}
-                      className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full"
+                      className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full min-w-0 appearance-none"
                     />
                   </div>
                 ) : (
@@ -748,14 +748,14 @@ const Hotels = () => {
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
                   {language === 'fr' ? 'Arrivée' : language === 'ar' ? 'الوصول' : 'Check-in'}
                 </label>
-                <div className="flex items-center gap-2 border-2 border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-primary-500 transition-colors">
+                <div className="flex items-center gap-2 overflow-hidden border-2 border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-primary-500 transition-colors">
                   <Calendar size={14} className="text-gray-400 flex-shrink-0" />
                   <input
                     type="date"
                     value={searchCheckIn}
                     onChange={e => setSearchCheckIn(e.target.value)}
                     min={new Date().toISOString().split('T')[0]}
-                    className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full"
+                    className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full min-w-0 appearance-none"
                   />
                 </div>
               </div>
@@ -781,14 +781,14 @@ const Hotels = () => {
                   </button>
                 </div>
                 {dateMode === 'checkout' ? (
-                  <div className="flex items-center gap-2 border-2 border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-primary-500 transition-colors">
+                  <div className="flex items-center gap-2 overflow-hidden border-2 border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-primary-500 transition-colors">
                     <Calendar size={14} className="text-gray-400 flex-shrink-0" />
                     <input
                       type="date"
                       value={searchCheckOut}
                       onChange={e => setSearchCheckOut(e.target.value)}
                       min={searchCheckIn || new Date().toISOString().split('T')[0]}
-                      className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full"
+                      className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full min-w-0 appearance-none"
                     />
                   </div>
                 ) : (

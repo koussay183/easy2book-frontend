@@ -828,7 +828,7 @@ const HotelDetails = () => {
                 type="date"
                 value={searchCheckIn}
                 onChange={(e) => setSearchCheckIn(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
             <div>
@@ -839,7 +839,7 @@ const HotelDetails = () => {
                 type="date"
                 value={searchCheckOut}
                 onChange={(e) => setSearchCheckOut(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
             <div className="relative md:col-span-2 lg:col-span-1">
