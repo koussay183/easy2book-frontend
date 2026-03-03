@@ -1,6 +1,6 @@
  import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, Users, ArrowLeft, Loader2, AlertCircle, Hotel as HotelIcon, Search, SlidersHorizontal, Star, DollarSign, Utensils, X, Check } from 'lucide-react';
+import { MapPin, Calendar, Users, ArrowLeft, Loader2, AlertCircle, Hotel as HotelIcon, Search, SlidersHorizontal, Star, DollarSign, Utensils, X, Check, Moon, Plus, Minus } from 'lucide-react';
 import HotelResultCard from '../components/hotels/HotelResultCard';
 import GuestSelector from '../components/landing/GuestSelector';
 import { useLanguage } from '../context/LanguageContext';
@@ -29,10 +29,6 @@ const Hotels = () => {
     console.error('Error parsing roomsConfig:', e);
     roomsConfig = [{ adults: 2, children: [] }];
   }
-  
-  // Calculate total adults and children from roomsConfig
-  const totalAdults = roomsConfig.reduce((sum, room) => sum + room.adults, 0);
-  const totalChildren = roomsConfig.reduce((sum, room) => sum + room.children.length, 0);
 
   const [filteredHotels, setFilteredHotels] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -44,6 +40,14 @@ const Hotels = () => {
   const [searchCheckOut, setSearchCheckOut] = useState(checkOut || '');
   const [searchRoomsConfig, setSearchRoomsConfig] = useState(roomsConfig);
   const [searchRooms, setSearchRooms] = useState(Number(rooms));
+  const [dateMode, setDateMode] = useState('checkout'); // 'checkout' | 'nights'
+  const [searchNights, setSearchNights] = useState(() => {
+    if (checkIn && checkOut) {
+      const n = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
+      return n > 0 ? n : 2;
+    }
+    return 2;
+  });
 
   // Filter state (applied filters)
   const [filters, setFilters] = useState({
@@ -230,16 +234,35 @@ const Hotels = () => {
   };
 
   const handleSearch = () => {
-    // Update URL params with new search
+    // Compute checkout date
+    let computedCheckOut = searchCheckOut;
+    if (dateMode === 'nights' && searchCheckIn && searchNights > 0) {
+      const d = new Date(searchCheckIn);
+      d.setDate(d.getDate() + searchNights);
+      computedCheckOut = d.toISOString().split('T')[0];
+    }
+
+    // Update URL (also triggers useEffect as a backup)
     const params = new URLSearchParams();
     if (cityId) params.set('cityId', cityId);
     if (searchCityName) params.set('cityName', searchCityName);
     if (searchCheckIn) params.set('checkIn', searchCheckIn);
-    if (searchCheckOut) params.set('checkOut', searchCheckOut);
+    if (computedCheckOut) params.set('checkOut', computedCheckOut);
     params.set('rooms', searchRooms.toString());
     params.set('roomsConfig', JSON.stringify(searchRoomsConfig));
-    
     setSearchParams(params);
+
+    // Directly trigger fetch so results refresh immediately
+    if (cityId) {
+      fetchHotels({
+        cityId,
+        cityName: searchCityName,
+        checkIn: searchCheckIn,
+        checkOut: computedCheckOut,
+        rooms: searchRooms,
+        roomsConfig: searchRoomsConfig
+      });
+    }
   };
 
   const toggleStarRating = (rating) => {
@@ -313,28 +336,18 @@ const Hotels = () => {
     ).map(b => JSON.stringify(b))
   )].map(b => JSON.parse(b));
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'}>
 
-      {/* ── Sticky Top Bar ── */}
-      <div className="sticky top-0 z-50 bg-primary-700 text-white shadow-md">
+      {/* ── Redesigned Sticky Header ── */}
+      <div className="sticky top-0 z-50 bg-white shadow-md border-b border-gray-100">
         <div className="container mx-auto px-4 py-3">
-          <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
 
-            {/* Back */}
+          {/* Top row: back + city badge + hotel count */}
+          <div className={`flex items-center gap-3 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
             <button
               onClick={() => navigate('/')}
-              className={`flex items-center gap-1.5 text-white/90 hover:text-white transition-colors flex-shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}
+              className={`flex items-center gap-1.5 text-gray-600 hover:text-primary-700 transition-colors flex-shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}
             >
               <ArrowLeft size={18} className={isRTL ? 'rotate-180' : ''} />
               <span className="text-sm font-medium hidden sm:inline">
@@ -342,115 +355,128 @@ const Hotels = () => {
               </span>
             </button>
 
-            {/* Search summary */}
-            <div className={`flex-1 flex items-center gap-2 text-sm text-white/85 min-w-0 overflow-hidden ${isRTL ? 'flex-row-reverse' : ''}`}>
-              {cityName && (
-                <span className="font-semibold text-white truncate">{cityName}</span>
-              )}
-              {checkIn && checkOut && (
-                <>
-                  <span className="opacity-40 flex-shrink-0">·</span>
-                  <span className="whitespace-nowrap flex-shrink-0">
-                    {formatDate(checkIn)} – {formatDate(checkOut)}
-                  </span>
-                  {(() => {
-                    const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
-                    return (
-                      <>
-                        <span className="opacity-40 flex-shrink-0 hidden sm:inline">·</span>
-                        <span className="hidden sm:inline flex-shrink-0 bg-white/15 px-2 py-0.5 rounded-full text-xs font-medium">
-                          {language === 'fr'
-                            ? `${nights} ${nights === 1 ? 'nuit' : 'nuits'}`
-                            : language === 'ar'
-                            ? `${nights} ${nights === 1 ? 'ليلة' : 'ليالي'}`
-                            : `${nights} ${nights === 1 ? 'night' : 'nights'}`}
-                        </span>
-                      </>
-                    );
-                  })()}
-                </>
-              )}
-              <span className="opacity-40 flex-shrink-0 hidden sm:inline">·</span>
-              <span className="hidden sm:inline flex-shrink-0 whitespace-nowrap">
-                {rooms} {language === 'fr' ? `ch.` : language === 'ar' ? 'غ' : 'rm'}{' '}
-                · {totalAdults} {language === 'fr' ? 'adulte(s)' : language === 'ar' ? 'بالغ' : 'adult(s)'}
-                {totalChildren > 0 && `, ${totalChildren} ${language === 'fr' ? 'enf.' : language === 'ar' ? 'أطفال' : 'child(ren)'}`}
-              </span>
-            </div>
+            {/* City badge */}
+            {searchCityName && (
+              <div className={`flex items-center gap-1.5 bg-primary-50 border border-primary-200 rounded-xl px-3 py-1.5 min-w-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <MapPin size={14} className="text-primary-600 flex-shrink-0" />
+                <span className="font-semibold text-primary-700 text-sm truncate">{searchCityName}</span>
+              </div>
+            )}
 
-            {/* Hotels count */}
+            <div className="flex-1" />
+
+            {/* Hotel count */}
             {!loading && !error && (
-              <div className="flex-shrink-0 bg-white/15 px-3 py-1 rounded-full text-sm font-semibold whitespace-nowrap">
-                {filteredHotels.length} {language === 'fr' ? 'hôtels' : language === 'ar' ? 'فنادق' : 'hotels'}
+              <div className="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-xl flex-shrink-0">
+                <HotelIcon size={14} className="text-gray-500" />
+                <span className="text-sm font-semibold text-gray-700">
+                  {filteredHotels.length} {language === 'fr' ? 'hôtels' : language === 'ar' ? 'فنادق' : 'hotels'}
+                </span>
+              </div>
+            )}
+            {loading && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5">
+                <Loader2 size={14} className="text-primary-600 animate-spin" />
+                <span className="text-sm text-gray-500">
+                  {language === 'fr' ? 'Chargement…' : language === 'ar' ? 'جارٍ التحميل…' : 'Loading…'}
+                </span>
               </div>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* ── Search & Filter Bar ── */}
-      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-[49px] z-40">
-        <div className="container mx-auto px-4 py-3">
+          {/* Bottom row: search fields */}
           <div className={`flex items-center gap-2 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
 
-            {/* Destination */}
-            <div className="flex-1 min-w-[140px]">
-              <div className="relative">
-                <MapPin size={15} className={`absolute top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none ${isRTL ? 'right-3' : 'left-3'}`} />
-                <input
-                  type="text"
-                  value={searchCityName}
-                  onChange={(e) => setSearchCityName(e.target.value)}
-                  className={`w-full border border-gray-200 rounded-xl py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-600 ${isRTL ? 'pr-9 pl-3 text-right' : 'pl-9 pr-3'}`}
-                  placeholder={language === 'fr' ? 'Destination' : language === 'ar' ? 'الوجهة' : 'Destination'}
-                />
-              </div>
-            </div>
-
             {/* Check-in */}
-            <div className="w-[130px]">
-              <div className="relative">
-                <Calendar size={14} className={`absolute top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none ${isRTL ? 'right-3' : 'left-3'}`} />
-                <input
-                  type="date"
-                  value={searchCheckIn}
-                  onChange={(e) => setSearchCheckIn(e.target.value)}
-                  className={`w-full border border-gray-200 rounded-xl py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-600 ${isRTL ? 'pr-9 pl-2' : 'pl-9 pr-2'}`}
-                />
-              </div>
+            <div className="relative flex-shrink-0">
+              <Calendar size={14} className={`absolute top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none ${isRTL ? 'right-3' : 'left-3'}`} />
+              <input
+                type="date"
+                value={searchCheckIn}
+                onChange={(e) => setSearchCheckIn(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className={`border border-gray-200 rounded-xl py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-600 w-[140px] ${isRTL ? 'pr-9 pl-2' : 'pl-9 pr-2'}`}
+              />
             </div>
 
-            {/* Check-out */}
-            <div className="w-[130px]">
-              <div className="relative">
+            {/* Date mode toggle */}
+            <div className="flex border border-gray-200 rounded-xl overflow-hidden flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setDateMode('checkout')}
+                className={`flex items-center gap-1 px-3 py-2.5 text-xs font-semibold transition-all ${dateMode === 'checkout' ? 'bg-primary-700 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+              >
+                <Calendar size={13} />
+                <span className="hidden sm:inline">{language === 'fr' ? 'Départ' : language === 'ar' ? 'المغادرة' : 'Out'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDateMode('nights')}
+                className={`flex items-center gap-1 px-3 py-2.5 text-xs font-semibold transition-all border-l border-gray-200 ${dateMode === 'nights' ? 'bg-primary-700 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+              >
+                <Moon size={13} />
+                <span className="hidden sm:inline">{language === 'fr' ? 'Nuits' : language === 'ar' ? 'ليالي' : 'Nights'}</span>
+              </button>
+            </div>
+
+            {/* Check-out date OR nights counter */}
+            {dateMode === 'checkout' ? (
+              <div className="relative flex-shrink-0">
                 <Calendar size={14} className={`absolute top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none ${isRTL ? 'right-3' : 'left-3'}`} />
                 <input
                   type="date"
                   value={searchCheckOut}
                   onChange={(e) => setSearchCheckOut(e.target.value)}
-                  className={`w-full border border-gray-200 rounded-xl py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-600 ${isRTL ? 'pr-9 pl-2' : 'pl-9 pr-2'}`}
+                  min={searchCheckIn || new Date().toISOString().split('T')[0]}
+                  className={`border border-gray-200 rounded-xl py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-600 w-[140px] ${isRTL ? 'pr-9 pl-2' : 'pl-9 pr-2'}`}
                 />
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden h-[38px] flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSearchNights(n => Math.max(1, n - 1))}
+                  className="w-9 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors border-r border-gray-200"
+                >
+                  <Minus size={14} />
+                </button>
+                <div className="px-3 flex items-center gap-1">
+                  <span className="text-sm font-bold text-primary-700">{searchNights}</span>
+                  <span className="text-xs text-gray-500">
+                    {language === 'fr' ? (searchNights === 1 ? 'nuit' : 'nuits') : language === 'ar' ? (searchNights === 1 ? 'ليلة' : 'ليالي') : (searchNights === 1 ? 'night' : 'nights')}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSearchNights(n => Math.min(30, n + 1))}
+                  className="w-9 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors border-l border-gray-200"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+            )}
 
             {/* Guests */}
             <button
               onClick={() => setShowGuestSelector(true)}
-              className={`flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl py-2.5 px-3 text-sm text-gray-700 font-medium transition-colors whitespace-nowrap ${isRTL ? 'flex-row-reverse' : ''}`}
+              className={`flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl py-2.5 px-3 text-sm text-gray-700 font-medium transition-colors whitespace-nowrap flex-shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}
             >
-              <Users size={15} className="text-gray-500 flex-shrink-0" />
+              <Users size={14} className="text-gray-500 flex-shrink-0" />
               <span>
-                {rooms} {language === 'fr' ? 'ch.' : language === 'ar' ? 'غ' : 'rm'}{' '}
-                · {totalAdults} {language === 'fr' ? 'adulte(s)' : language === 'ar' ? 'بالغ' : 'adult(s)'}
+                {searchRooms} {language === 'fr' ? 'ch.' : language === 'ar' ? 'غ' : 'rm'}{' '}
+                · {searchRoomsConfig.reduce((s, r) => s + r.adults, 0)} {language === 'fr' ? 'ad.' : language === 'ar' ? 'بالغ' : 'ad.'}
+                {searchRoomsConfig.reduce((s, r) => s + r.children.length, 0) > 0 && (
+                  <> · {searchRoomsConfig.reduce((s, r) => s + r.children.length, 0)} {language === 'fr' ? 'enf.' : language === 'ar' ? 'أطفال' : 'ch.'}</>
+                )}
               </span>
             </button>
 
             {/* Search */}
             <button
               onClick={handleSearch}
-              className="bg-primary-700 hover:bg-primary-800 text-white rounded-xl py-2.5 px-4 font-semibold text-sm transition-colors flex items-center gap-2 flex-shrink-0"
+              className="bg-primary-700 hover:bg-primary-800 active:scale-95 text-white rounded-xl py-2.5 px-4 font-semibold text-sm transition-all flex items-center gap-2 flex-shrink-0 shadow-sm"
             >
-              <Search size={16} />
+              <Search size={15} />
               <span className="hidden sm:inline">
                 {language === 'fr' ? 'Rechercher' : language === 'ar' ? 'بحث' : 'Search'}
               </span>
@@ -470,7 +496,7 @@ const Hotels = () => {
                 {language === 'fr' ? 'Filtres' : language === 'ar' ? 'فلاتر' : 'Filters'}
               </span>
               {(filters.starRating.length > 0 || filters.boardingTypes.length > 0 || filters.themes.length > 0 || filters.priceRange[1] < 5000) && (
-                <span className="bg-primary-700 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                <span className="bg-primary-700 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
                   {filters.starRating.length + filters.boardingTypes.length + filters.themes.length + (filters.priceRange[1] < 5000 ? 1 : 0)}
                 </span>
               )}

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Hotel, Plane, Mountain, Sparkles, MapPin, Calendar, Search, Car, Train } from 'lucide-react';
+import { Hotel, Plane, Mountain, Sparkles, MapPin, Calendar, Search, Car, Train, Moon, Plus, Minus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import GuestSelector from './GuestSelector';
 import { useLanguage } from '../../context/LanguageContext';
@@ -76,6 +76,8 @@ const SearchBox = ({
   // Date states
   const [checkInDate, setCheckInDate] = useState('');
   const [checkOutDate, setCheckOutDate] = useState('');
+  const [dateMode, setDateMode] = useState('checkout'); // 'checkout' | 'nights'
+  const [nightsCount, setNightsCount] = useState(2);
 
   // Omra category state
   const [selectedOmraCategory, setSelectedOmraCategory] = useState('');
@@ -180,15 +182,28 @@ const SearchBox = ({
       alert(language === 'fr' ? 'Veuillez sélectionner une destination' : language === 'ar' ? 'الرجاء اختيار وجهة' : 'Please select a destination');
       return;
     }
-    if (!checkInDate || !checkOutDate) {
-      alert(language === 'fr' ? 'Veuillez sélectionner les dates' : language === 'ar' ? 'الرجاء اختيار التواريخ' : 'Please select dates');
+    if (!checkInDate) {
+      alert(language === 'fr' ? 'Veuillez sélectionner la date d\'arrivée' : language === 'ar' ? 'الرجاء اختيار تاريخ الوصول' : 'Please select a check-in date');
+      return;
+    }
+
+    // Compute check-out
+    let computedCheckOut = checkOutDate;
+    if (dateMode === 'nights') {
+      const d = new Date(checkInDate);
+      d.setDate(d.getDate() + nightsCount);
+      computedCheckOut = d.toISOString().split('T')[0];
+    }
+
+    if (!computedCheckOut) {
+      alert(language === 'fr' ? 'Veuillez sélectionner la date de départ' : language === 'ar' ? 'الرجاء اختيار تاريخ المغادرة' : 'Please select a check-out date');
       return;
     }
 
     if (selectedHotel) {
       const searchParams = new URLSearchParams({
         checkIn: checkInDate,
-        checkOut: checkOutDate,
+        checkOut: computedCheckOut,
         rooms: rooms,
         roomsConfig: JSON.stringify(roomsConfig)
       });
@@ -200,7 +215,7 @@ const SearchBox = ({
       cityId: selectedCity.id,
       cityName: selectedCity.name,
       checkIn: checkInDate,
-      checkOut: checkOutDate,
+      checkOut: computedCheckOut,
       rooms: rooms,
       roomsConfig: JSON.stringify(roomsConfig)
     });
@@ -325,8 +340,8 @@ const SearchBox = ({
                   </label>
                   <div className="relative">
                     <Calendar size={20} className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 text-gray-400`} />
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       value={checkInDate}
                       onChange={(e) => setCheckInDate(e.target.value)}
                       min={new Date().toISOString().split('T')[0]}
@@ -335,21 +350,63 @@ const SearchBox = ({
                   </div>
                 </div>
 
-                {/* Check-out Date */}
+                {/* Check-out / Nights */}
                 <div className="w-full md:flex-1">
-                  <label className={`block text-xs font-bold text-gray-700 mb-2.5 ${isRTL ? 'text-right' : 'text-left'}`}>
-                    {t.checkOut}
-                  </label>
-                  <div className="relative">
-                    <Calendar size={20} className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 text-gray-400`} />
-                    <input 
-                      type="date" 
-                      value={checkOutDate}
-                      onChange={(e) => setCheckOutDate(e.target.value)}
-                      min={checkInDate || new Date().toISOString().split('T')[0]}
-                      className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-primary-700 focus:ring-2 focus:ring-primary-100 transition-all bg-white hover:border-gray-400`}
-                    />
+                  {/* Mode toggle label */}
+                  <div className={`flex items-center mb-2.5 gap-1 ${isRTL ? 'justify-end' : 'justify-start'}`}>
+                    <button
+                      type="button"
+                      onClick={() => setDateMode('checkout')}
+                      className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg transition-all ${dateMode === 'checkout' ? 'bg-primary-700 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+                    >
+                      <Calendar size={12} />
+                      {t.checkOut}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDateMode('nights')}
+                      className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg transition-all ${dateMode === 'nights' ? 'bg-primary-700 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+                    >
+                      <Moon size={12} />
+                      {language === 'fr' ? 'Nuits' : language === 'ar' ? 'ليالي' : 'Nights'}
+                    </button>
                   </div>
+
+                  {dateMode === 'checkout' ? (
+                    <div className="relative">
+                      <Calendar size={20} className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 text-gray-400`} />
+                      <input
+                        type="date"
+                        value={checkOutDate}
+                        onChange={(e) => setCheckOutDate(e.target.value)}
+                        min={checkInDate || new Date().toISOString().split('T')[0]}
+                        className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-primary-700 focus:ring-2 focus:ring-primary-100 transition-all bg-white hover:border-gray-400`}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden h-[50px]">
+                      <button
+                        type="button"
+                        onClick={() => setNightsCount(n => Math.max(1, n - 1))}
+                        className="w-12 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors border-r border-gray-200 flex-shrink-0"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <div className="flex-1 flex flex-col items-center justify-center">
+                        <span className="text-xl font-bold text-primary-700 leading-none">{nightsCount}</span>
+                        <span className="text-[10px] text-gray-400 mt-0.5">
+                          {language === 'fr' ? (nightsCount === 1 ? 'nuit' : 'nuits') : language === 'ar' ? (nightsCount === 1 ? 'ليلة' : 'ليالي') : (nightsCount === 1 ? 'night' : 'nights')}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setNightsCount(n => Math.min(30, n + 1))}
+                        className="w-12 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors border-l border-gray-200 flex-shrink-0"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
