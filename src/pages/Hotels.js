@@ -1,10 +1,53 @@
- import React, { useState, useEffect } from 'react';
+ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { MapPin, Calendar, Users, ArrowLeft, Loader2, AlertCircle, Hotel as HotelIcon, Search, SlidersHorizontal, Star, DollarSign, Utensils, X, Check, Moon, Plus, Minus } from 'lucide-react';
 import HotelResultCard from '../components/hotels/HotelResultCard';
 import GuestSelector from '../components/landing/GuestSelector';
 import { useLanguage } from '../context/LanguageContext';
 import { useHotels } from '../context/HotelsContext';
+import { API_ENDPOINTS } from '../config/api';
+
+// Shared city list
+const CITIES = [
+  { id: 10, name: "Hammamet", region: "Cap Bon", country: "Tunisie" },
+  { id: 11, name: "Nabeul", region: "Cap Bon", country: "Tunisie" },
+  { id: 12, name: "Kelibia", region: "Cap Bon", country: "Tunisie" },
+  { id: 13, name: "Korba", region: "Cap Bon", country: "Tunisie" },
+  { id: 14, name: "Korbous", region: "Cap Bon", country: "Tunisie" },
+  { id: 17, name: "Kairouan", region: "Centre", country: "Tunisie" },
+  { id: 18, name: "Djerba", region: "Djerba & Zarzis", country: "Tunisie" },
+  { id: 19, name: "Zarzis", region: "Djerba & Zarzis", country: "Tunisie" },
+  { id: 20, name: "Douz", region: "Djerid", country: "Tunisie" },
+  { id: 22, name: "Kebili", region: "Djerid", country: "Tunisie" },
+  { id: 23, name: "Ksar Ghilane", region: "Djerid", country: "Tunisie" },
+  { id: 31, name: "Ain Drahem", region: "Nord", country: "Tunisie" },
+  { id: 32, name: "Tunis", region: "Tunis et Côtes de Carthage", country: "Tunisie" },
+  { id: 33, name: "Tabarka", region: "Tabarka", country: "Tunisie" },
+  { id: 34, name: "Sousse", region: "Sahel", country: "Tunisie" },
+  { id: 35, name: "Mahdia", region: "Sahel", country: "Tunisie" },
+  { id: 37, name: "Monastir", region: "Sahel", country: "Tunisie" },
+  { id: 39, name: "Sfax", region: "Sfax", country: "Tunisie" },
+  { id: 47, name: "Tozeur", region: "Djerid", country: "Tunisie" },
+  { id: 48, name: "Bizerte", region: "Nord", country: "Tunisie" },
+  { id: 49, name: "Le Kef", region: "Nord-ouest", country: "Tunisie" },
+  { id: 54, name: "Gafsa", region: "Sud", country: "Tunisie" },
+  { id: 55, name: "Gabes", region: "Sud", country: "Tunisie" },
+  { id: 59, name: "Zaghouan", region: "Cap Bon", country: "Tunisie" },
+  { id: 70, name: "Tataouine", region: "Sud", country: "Tunisie" },
+  { id: 71, name: "Téboursouk", region: "Nord-ouest", country: "Tunisie" },
+  { id: 72, name: "Sbeitla", region: "Centre", country: "Tunisie" },
+  { id: 73, name: "Matmata", region: "Sud", country: "Tunisie" },
+  { id: 74, name: "Sidi Bouzid", region: "Centre", country: "Tunisie" },
+  { id: 75, name: "Nefta", region: "Djerid", country: "Tunisie" },
+  { id: 76, name: "Mednenine", region: "Djerba & Zarzis", country: "Tunisie" },
+  { id: 6482, name: "El Jem", region: "Sahel", country: "Tunisie" },
+  { id: 6483, name: "Kerkennah", region: "Sfax", country: "Tunisie" },
+  { id: 6484, name: "Nefza", region: "Nord-ouest", country: "Tunisie" },
+  { id: 6485, name: "Gammarth", region: "Gammarth", country: "Tunisie" },
+  { id: 6487, name: "Béja", region: "Béja", country: "Tunisie" },
+  { id: 6488, name: "Istanbul", region: "", country: "Turquie" },
+  { id: 6489, name: "Esenyurt - Istanbul", region: "", country: "Turquie" },
+];
 
 const Hotels = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -48,6 +91,72 @@ const Hotels = () => {
     }
     return 2;
   });
+
+  // Header destination autocomplete
+  const [headerDest, setHeaderDest] = useState(cityName || '');
+  const [headerCity, setHeaderCity] = useState(null);   // selected city from dropdown
+  const [headerHotelsList, setHeaderHotelsList] = useState([]);
+  const [headerResults, setHeaderResults] = useState([]); // [{ city, hotels }]
+  const [showHeaderDrop, setShowHeaderDrop] = useState(false);
+  const headerDestRef = useRef(null);
+
+  // Fetch hotel names once on mount
+  useEffect(() => {
+    fetch(API_ENDPOINTS.MYGO_HOTELS)
+      .then(r => r.json())
+      .then(json => {
+        const list = json?.data?.ListHotel;
+        if (Array.isArray(list)) {
+          setHeaderHotelsList(list.map(h => ({ Id: h.Id, Name: h.Name, City: h.City })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Build grouped destination results
+  useEffect(() => {
+    const byCity = {};
+    headerHotelsList.forEach(h => {
+      const cid = h.City?.Id;
+      if (cid != null) {
+        if (!byCity[cid]) byCity[cid] = [];
+        byCity[cid].push(h);
+      }
+    });
+    const q = headerDest.trim().toLowerCase();
+    if (q === '') {
+      setHeaderResults(CITIES.map(c => ({ city: c, hotels: (byCity[c.id] || []).slice(0, 2) })));
+      return;
+    }
+    const results = [];
+    const seen = new Set();
+    CITIES.forEach(c => {
+      if (c.name.toLowerCase().includes(q) || c.region.toLowerCase().includes(q)) {
+        seen.add(c.id);
+        results.push({ city: c, hotels: (byCity[c.id] || []).slice(0, 4) });
+      }
+    });
+    headerHotelsList.filter(h => h.Name?.toLowerCase().includes(q)).forEach(h => {
+      const cid = h.City?.Id;
+      if (cid == null || seen.has(cid)) return;
+      seen.add(cid);
+      const cityObj = CITIES.find(c => c.id === cid) || { id: cid, name: h.City?.Name || '', region: '', country: '' };
+      const matching = (byCity[cid] || []).filter(x => x.Name?.toLowerCase().includes(q));
+      results.push({ city: cityObj, hotels: matching.slice(0, 4) });
+    });
+    setHeaderResults(results);
+  }, [headerDest, headerHotelsList]);
+
+  // Close header dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (headerDestRef.current && !headerDestRef.current.contains(e.target)) {
+        setShowHeaderDrop(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Filter state (applied filters)
   const [filters, setFilters] = useState({
@@ -233,35 +342,45 @@ const Hotels = () => {
     return hotel.Price || hotel.MinPrice || 0;
   };
 
-  const handleSearch = () => {
-    // Compute checkout date
-    let computedCheckOut = searchCheckOut;
-    if (dateMode === 'nights' && searchCheckIn && searchNights > 0) {
-      const d = new Date(searchCheckIn);
+  const computeCheckOut = (checkInVal) => {
+    if (dateMode === 'nights' && checkInVal && searchNights > 0) {
+      const d = new Date(checkInVal);
       d.setDate(d.getDate() + searchNights);
-      computedCheckOut = d.toISOString().split('T')[0];
+      return d.toISOString().split('T')[0];
     }
+    return searchCheckOut;
+  };
 
-    // Update URL (also triggers useEffect as a backup)
+  const handleHeaderCitySelect = (city) => {
+    setHeaderDest(city.name);
+    setHeaderCity(city);
+    setSearchCityName(city.name);
+    setShowHeaderDrop(false);
+  };
+
+  const handleHeaderHotelSelect = (hotel) => {
+    setShowHeaderDrop(false);
+    const out = computeCheckOut(searchCheckIn);
+    const p = new URLSearchParams({ checkIn: searchCheckIn, checkOut: out, rooms: searchRooms, roomsConfig: JSON.stringify(searchRoomsConfig) });
+    navigate(`/hotel/${hotel.Id}?${p.toString()}`);
+  };
+
+  const handleSearch = () => {
+    const targetCityId = headerCity?.id || cityId;
+    const targetCityName = headerCity?.name || searchCityName;
+    const out = computeCheckOut(searchCheckIn);
+
     const params = new URLSearchParams();
-    if (cityId) params.set('cityId', cityId);
-    if (searchCityName) params.set('cityName', searchCityName);
+    if (targetCityId) params.set('cityId', String(targetCityId));
+    if (targetCityName) params.set('cityName', targetCityName);
     if (searchCheckIn) params.set('checkIn', searchCheckIn);
-    if (computedCheckOut) params.set('checkOut', computedCheckOut);
+    if (out) params.set('checkOut', out);
     params.set('rooms', searchRooms.toString());
     params.set('roomsConfig', JSON.stringify(searchRoomsConfig));
     setSearchParams(params);
 
-    // Directly trigger fetch so results refresh immediately
-    if (cityId) {
-      fetchHotels({
-        cityId,
-        cityName: searchCityName,
-        checkIn: searchCheckIn,
-        checkOut: computedCheckOut,
-        rooms: searchRooms,
-        roomsConfig: searchRoomsConfig
-      });
+    if (targetCityId) {
+      fetchHotels({ cityId: targetCityId, cityName: targetCityName, checkIn: searchCheckIn, checkOut: out, rooms: searchRooms, roomsConfig: searchRoomsConfig });
     }
   };
 
@@ -339,168 +458,221 @@ const Hotels = () => {
   return (
     <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'}>
 
-      {/* ── Redesigned Sticky Header ── */}
-      <div className="sticky top-0 z-50 bg-white shadow-md border-b border-gray-100">
-        <div className="container mx-auto px-4 py-3">
+      {/* ── Sticky Header ── */}
+      <div className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-md">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
 
-          {/* Top row: back + city badge + hotel count */}
-          <div className={`flex items-center gap-3 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+            {/* Back button */}
             <button
               onClick={() => navigate('/')}
-              className={`flex items-center gap-1.5 text-gray-600 hover:text-primary-700 transition-colors flex-shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}
+              className="flex items-center gap-1.5 text-gray-500 hover:text-primary-700 transition-colors flex-shrink-0 group"
             >
-              <ArrowLeft size={18} className={isRTL ? 'rotate-180' : ''} />
-              <span className="text-sm font-medium hidden sm:inline">
+              <div className="w-8 h-8 rounded-xl bg-gray-100 group-hover:bg-primary-50 flex items-center justify-center transition-colors">
+                <ArrowLeft size={16} className={isRTL ? 'rotate-180' : ''} />
+              </div>
+              <span className="text-sm font-medium hidden md:inline text-gray-600 group-hover:text-primary-700">
                 {language === 'fr' ? 'Retour' : language === 'ar' ? 'رجوع' : 'Back'}
               </span>
             </button>
 
-            {/* City badge */}
-            {searchCityName && (
-              <div className={`flex items-center gap-1.5 bg-primary-50 border border-primary-200 rounded-xl px-3 py-1.5 min-w-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <MapPin size={14} className="text-primary-600 flex-shrink-0" />
-                <span className="font-semibold text-primary-700 text-sm truncate">{searchCityName}</span>
-              </div>
-            )}
+            {/* ── Unified Search Bar ── */}
+            <div className={`flex-1 flex items-stretch bg-white border-2 border-gray-200 rounded-2xl overflow-visible hover:border-primary-300 focus-within:border-primary-500 transition-colors shadow-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
 
-            <div className="flex-1" />
-
-            {/* Hotel count */}
-            {!loading && !error && (
-              <div className="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-xl flex-shrink-0">
-                <HotelIcon size={14} className="text-gray-500" />
-                <span className="text-sm font-semibold text-gray-700">
-                  {filteredHotels.length} {language === 'fr' ? 'hôtels' : language === 'ar' ? 'فنادق' : 'hotels'}
-                </span>
-              </div>
-            )}
-            {loading && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5">
-                <Loader2 size={14} className="text-primary-600 animate-spin" />
-                <span className="text-sm text-gray-500">
-                  {language === 'fr' ? 'Chargement…' : language === 'ar' ? 'جارٍ التحميل…' : 'Loading…'}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Bottom row: search fields */}
-          <div className={`flex items-center gap-2 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
-
-            {/* Check-in */}
-            <div className="relative flex-shrink-0">
-              <Calendar size={14} className={`absolute top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none ${isRTL ? 'right-3' : 'left-3'}`} />
-              <input
-                type="date"
-                value={searchCheckIn}
-                onChange={(e) => setSearchCheckIn(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                className={`border border-gray-200 rounded-xl py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-600 w-[140px] ${isRTL ? 'pr-9 pl-2' : 'pl-9 pr-2'}`}
-              />
-            </div>
-
-            {/* Date mode toggle */}
-            <div className="flex border border-gray-200 rounded-xl overflow-hidden flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => setDateMode('checkout')}
-                className={`flex items-center gap-1 px-3 py-2.5 text-xs font-semibold transition-all ${dateMode === 'checkout' ? 'bg-primary-700 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
-              >
-                <Calendar size={13} />
-                <span className="hidden sm:inline">{language === 'fr' ? 'Départ' : language === 'ar' ? 'المغادرة' : 'Out'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDateMode('nights')}
-                className={`flex items-center gap-1 px-3 py-2.5 text-xs font-semibold transition-all border-l border-gray-200 ${dateMode === 'nights' ? 'bg-primary-700 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
-              >
-                <Moon size={13} />
-                <span className="hidden sm:inline">{language === 'fr' ? 'Nuits' : language === 'ar' ? 'ليالي' : 'Nights'}</span>
-              </button>
-            </div>
-
-            {/* Check-out date OR nights counter */}
-            {dateMode === 'checkout' ? (
-              <div className="relative flex-shrink-0">
-                <Calendar size={14} className={`absolute top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none ${isRTL ? 'right-3' : 'left-3'}`} />
-                <input
-                  type="date"
-                  value={searchCheckOut}
-                  onChange={(e) => setSearchCheckOut(e.target.value)}
-                  min={searchCheckIn || new Date().toISOString().split('T')[0]}
-                  className={`border border-gray-200 rounded-xl py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-600 w-[140px] ${isRTL ? 'pr-9 pl-2' : 'pl-9 pr-2'}`}
-                />
-              </div>
-            ) : (
-              <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden h-[38px] flex-shrink-0">
+              {/* Destination */}
+              <div className="flex-[2] relative min-w-0" ref={headerDestRef}>
                 <button
                   type="button"
-                  onClick={() => setSearchNights(n => Math.max(1, n - 1))}
-                  className="w-9 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors border-r border-gray-200"
+                  onClick={() => setShowHeaderDrop(true)}
+                  className={`w-full h-full text-left px-5 py-2.5 hover:bg-gray-50/80 rounded-l-2xl transition-colors ${isRTL ? 'text-right' : ''}`}
                 >
-                  <Minus size={14} />
+                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                    {language === 'fr' ? 'Destination' : language === 'ar' ? 'الوجهة' : 'Destination'}
+                  </div>
+                  <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <MapPin size={14} className="text-primary-500 flex-shrink-0" />
+                    <input
+                      value={headerDest}
+                      onChange={e => { setHeaderDest(e.target.value); setHeaderCity(null); setShowHeaderDrop(true); }}
+                      onFocus={() => setShowHeaderDrop(true)}
+                      placeholder={language === 'fr' ? 'Ville ou hôtel…' : language === 'ar' ? 'مدينة أو فندق…' : 'City or hotel…'}
+                      className={`bg-transparent text-sm font-semibold text-gray-800 outline-none w-full placeholder:text-gray-400 placeholder:font-normal ${isRTL ? 'text-right' : ''}`}
+                    />
+                  </div>
                 </button>
-                <div className="px-3 flex items-center gap-1">
-                  <span className="text-sm font-bold text-primary-700">{searchNights}</span>
-                  <span className="text-xs text-gray-500">
-                    {language === 'fr' ? (searchNights === 1 ? 'nuit' : 'nuits') : language === 'ar' ? (searchNights === 1 ? 'ليلة' : 'ليالي') : (searchNights === 1 ? 'night' : 'nights')}
+
+                {/* Dropdown */}
+                {showHeaderDrop && headerResults.length > 0 && (
+                  <div className="absolute top-[calc(100%+8px)] left-0 w-80 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 max-h-80 overflow-y-auto">
+                    {headerResults.map(({ city, hotels }) => (
+                      <div key={city.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleHeaderCitySelect(city)}
+                          className="w-full text-left px-4 py-2.5 hover:bg-primary-50 flex items-center gap-3 border-b border-gray-50 transition-colors"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
+                            <MapPin size={13} className="text-primary-600" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900">{city.name}</div>
+                            {city.region && <div className="text-xs text-gray-400">{city.region}{city.country ? `, ${city.country}` : ''}</div>}
+                          </div>
+                        </button>
+                        {hotels.map(h => (
+                          <button
+                            key={h.Id}
+                            type="button"
+                            onClick={() => handleHeaderHotelSelect(h)}
+                            className="w-full text-left pl-14 pr-4 py-2 hover:bg-blue-50 flex items-center gap-2.5 border-b border-gray-50 bg-gray-50/30 transition-colors"
+                          >
+                            <HotelIcon size={12} className="text-gray-400 flex-shrink-0" />
+                            <span className="text-xs text-gray-700 truncate">{h.Name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="w-px bg-gray-200 my-2 flex-shrink-0" />
+
+              {/* Check-in */}
+              <div className="flex-1 min-w-0 px-4 py-2.5">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  {language === 'fr' ? 'Arrivée' : language === 'ar' ? 'الوصول' : 'Check-in'}
+                </div>
+                <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <Calendar size={13} className="text-gray-400 flex-shrink-0" />
+                  <input
+                    type="date"
+                    value={searchCheckIn}
+                    onChange={e => setSearchCheckIn(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="w-px bg-gray-200 my-2 flex-shrink-0" />
+
+              {/* Check-out / Nights */}
+              <div className="flex-1 min-w-0 px-4 py-2.5">
+                <div className={`flex items-center gap-1 mb-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <button
+                    type="button"
+                    onClick={() => setDateMode('checkout')}
+                    className={`flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md transition-all ${dateMode === 'checkout' ? 'bg-primary-700 text-white' : 'text-gray-400 hover:text-gray-600'}`}
+                  >
+                    <Calendar size={9} />
+                    {language === 'fr' ? 'Départ' : language === 'ar' ? 'مغادرة' : 'Out'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDateMode('nights')}
+                    className={`flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md transition-all ${dateMode === 'nights' ? 'bg-primary-700 text-white' : 'text-gray-400 hover:text-gray-600'}`}
+                  >
+                    <Moon size={9} />
+                    {language === 'fr' ? 'Nuits' : language === 'ar' ? 'ليالي' : 'Nights'}
+                  </button>
+                </div>
+
+                {dateMode === 'checkout' ? (
+                  <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <Calendar size={13} className="text-gray-400 flex-shrink-0" />
+                    <input
+                      type="date"
+                      value={searchCheckOut}
+                      onChange={e => setSearchCheckOut(e.target.value)}
+                      min={searchCheckIn || new Date().toISOString().split('T')[0]}
+                      className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full"
+                    />
+                  </div>
+                ) : (
+                  <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <button type="button" onClick={() => setSearchNights(n => Math.max(1, n - 1))} className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors flex-shrink-0">
+                      <Minus size={11} />
+                    </button>
+                    <span className="text-sm font-bold text-primary-700 min-w-[2ch] text-center">{searchNights}</span>
+                    <span className="text-xs text-gray-500">
+                      {language === 'fr' ? (searchNights === 1 ? 'nuit' : 'nuits') : language === 'ar' ? (searchNights === 1 ? 'ليلة' : 'ليالي') : (searchNights === 1 ? 'night' : 'nights')}
+                    </span>
+                    <button type="button" onClick={() => setSearchNights(n => Math.min(30, n + 1))} className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors flex-shrink-0">
+                      <Plus size={11} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="w-px bg-gray-200 my-2 flex-shrink-0" />
+
+              {/* Guests */}
+              <button
+                type="button"
+                onClick={() => setShowGuestSelector(true)}
+                className={`flex-1 min-w-0 px-4 py-2.5 text-left hover:bg-gray-50/80 transition-colors ${isRTL ? 'text-right' : ''}`}
+              >
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  {language === 'fr' ? 'Voyageurs' : language === 'ar' ? 'الضيوف' : 'Guests'}
+                </div>
+                <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <Users size={13} className="text-gray-400 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-gray-800 truncate">
+                    {searchRooms} {language === 'fr' ? 'ch.' : language === 'ar' ? 'غ' : 'rm'} · {searchRoomsConfig.reduce((s, r) => s + r.adults, 0)} {language === 'fr' ? 'ad.' : language === 'ar' ? 'بالغ' : 'ad.'}
+                    {searchRoomsConfig.reduce((s, r) => s + r.children.length, 0) > 0 && ` · ${searchRoomsConfig.reduce((s, r) => s + r.children.length, 0)} ${language === 'fr' ? 'enf.' : language === 'ar' ? 'أطفال' : 'ch.'}`}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSearchNights(n => Math.min(30, n + 1))}
-                  className="w-9 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors border-l border-gray-200"
-                >
-                  <Plus size={14} />
-                </button>
-              </div>
-            )}
+              </button>
 
-            {/* Guests */}
-            <button
-              onClick={() => setShowGuestSelector(true)}
-              className={`flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl py-2.5 px-3 text-sm text-gray-700 font-medium transition-colors whitespace-nowrap flex-shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}
-            >
-              <Users size={14} className="text-gray-500 flex-shrink-0" />
-              <span>
-                {searchRooms} {language === 'fr' ? 'ch.' : language === 'ar' ? 'غ' : 'rm'}{' '}
-                · {searchRoomsConfig.reduce((s, r) => s + r.adults, 0)} {language === 'fr' ? 'ad.' : language === 'ar' ? 'بالغ' : 'ad.'}
-                {searchRoomsConfig.reduce((s, r) => s + r.children.length, 0) > 0 && (
-                  <> · {searchRoomsConfig.reduce((s, r) => s + r.children.length, 0)} {language === 'fr' ? 'enf.' : language === 'ar' ? 'أطفال' : 'ch.'}</>
-                )}
-              </span>
-            </button>
-
-            {/* Search */}
-            <button
-              onClick={handleSearch}
-              className="bg-primary-700 hover:bg-primary-800 active:scale-95 text-white rounded-xl py-2.5 px-4 font-semibold text-sm transition-all flex items-center gap-2 flex-shrink-0 shadow-sm"
-            >
-              <Search size={15} />
-              <span className="hidden sm:inline">
-                {language === 'fr' ? 'Rechercher' : language === 'ar' ? 'بحث' : 'Search'}
-              </span>
-            </button>
-
-            {/* Filters */}
-            <button
-              onClick={openFilterModal}
-              className={`relative flex items-center gap-2 border rounded-xl py-2.5 px-4 font-semibold text-sm transition-colors flex-shrink-0 ${
-                (filters.starRating.length > 0 || filters.boardingTypes.length > 0 || filters.themes.length > 0 || filters.priceRange[1] < 5000)
-                  ? 'bg-primary-50 border-primary-300 text-primary-700'
-                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <SlidersHorizontal size={15} />
-              <span className="hidden sm:inline">
-                {language === 'fr' ? 'Filtres' : language === 'ar' ? 'فلاتر' : 'Filters'}
-              </span>
-              {(filters.starRating.length > 0 || filters.boardingTypes.length > 0 || filters.themes.length > 0 || filters.priceRange[1] < 5000) && (
-                <span className="bg-primary-700 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                  {filters.starRating.length + filters.boardingTypes.length + filters.themes.length + (filters.priceRange[1] < 5000 ? 1 : 0)}
+              {/* Search button — part of the bar */}
+              <button
+                onClick={handleSearch}
+                className={`bg-primary-700 hover:bg-primary-800 active:scale-95 text-white px-6 font-bold text-sm transition-all flex items-center gap-2 flex-shrink-0 rounded-r-2xl ${isRTL ? 'rounded-r-none rounded-l-2xl' : ''}`}
+              >
+                <Search size={17} />
+                <span className="hidden lg:inline">
+                  {language === 'fr' ? 'Rechercher' : language === 'ar' ? 'بحث' : 'Search'}
                 </span>
+              </button>
+            </div>
+
+            {/* Filters + count */}
+            <div className={`flex items-center gap-2 flex-shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <button
+                onClick={openFilterModal}
+                className={`relative flex items-center gap-1.5 border-2 rounded-xl py-2 px-3 font-semibold text-sm transition-colors ${
+                  (filters.starRating.length > 0 || filters.boardingTypes.length > 0 || filters.themes.length > 0 || filters.priceRange[1] < 5000)
+                    ? 'bg-primary-50 border-primary-300 text-primary-700'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                <SlidersHorizontal size={15} />
+                <span className="hidden sm:inline">
+                  {language === 'fr' ? 'Filtres' : language === 'ar' ? 'فلاتر' : 'Filters'}
+                </span>
+                {(filters.starRating.length + filters.boardingTypes.length + filters.themes.length + (filters.priceRange[1] < 5000 ? 1 : 0)) > 0 && (
+                  <span className="bg-primary-700 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {filters.starRating.length + filters.boardingTypes.length + filters.themes.length + (filters.priceRange[1] < 5000 ? 1 : 0)}
+                  </span>
+                )}
+              </button>
+
+              {/* Hotel count badge */}
+              {!loading && !error && (
+                <div className="flex items-center gap-1.5 bg-gray-100 px-3 py-2 rounded-xl">
+                  <HotelIcon size={13} className="text-gray-500" />
+                  <span className="text-sm font-bold text-gray-700 whitespace-nowrap">
+                    {filteredHotels.length}
+                  </span>
+                </div>
               )}
-            </button>
+              {loading && <Loader2 size={18} className="text-primary-600 animate-spin" />}
+            </div>
+
           </div>
         </div>
       </div>
