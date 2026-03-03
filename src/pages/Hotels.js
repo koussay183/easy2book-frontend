@@ -5,7 +5,6 @@ import HotelResultCard from '../components/hotels/HotelResultCard';
 import GuestSelector from '../components/landing/GuestSelector';
 import { useLanguage } from '../context/LanguageContext';
 import { useHotels } from '../context/HotelsContext';
-import { API_ENDPOINTS } from '../config/api';
 
 // Shared city list
 const CITIES = [
@@ -53,7 +52,7 @@ const Hotels = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { language } = useLanguage();
-  const { hotels, loading, error, fetchHotels } = useHotels();
+  const { hotels, loading, loadingMore, error, hasMore, total, fetchHotels, loadMoreHotels } = useHotels();
   const isRTL = language === 'ar';
 
   // Get search parameters
@@ -95,57 +94,23 @@ const Hotels = () => {
   // Header destination autocomplete
   const [headerDest, setHeaderDest] = useState(cityName || '');
   const [headerCity, setHeaderCity] = useState(null);   // selected city from dropdown
-  const [headerHotelsList, setHeaderHotelsList] = useState([]);
-  const [headerResults, setHeaderResults] = useState([]); // [{ city, hotels }]
+  const [headerResults, setHeaderResults] = useState([]); // [{ city }]
   const [showHeaderDrop, setShowHeaderDrop] = useState(false);
   const headerDestRef = useRef(null);
 
-  // Fetch hotel names once on mount
+  // Build city suggestions for header destination dropdown
   useEffect(() => {
-    fetch(API_ENDPOINTS.MYGO_HOTELS)
-      .then(r => r.json())
-      .then(json => {
-        const list = json?.data?.ListHotel;
-        if (Array.isArray(list)) {
-          setHeaderHotelsList(list.map(h => ({ Id: h.Id, Name: h.Name, City: h.City })));
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  // Build grouped destination results
-  useEffect(() => {
-    const byCity = {};
-    headerHotelsList.forEach(h => {
-      const cid = h.City?.Id;
-      if (cid != null) {
-        if (!byCity[cid]) byCity[cid] = [];
-        byCity[cid].push(h);
-      }
-    });
     const q = headerDest.trim().toLowerCase();
     if (q === '') {
-      setHeaderResults(CITIES.map(c => ({ city: c, hotels: (byCity[c.id] || []).slice(0, 2) })));
+      setHeaderResults(CITIES.slice(0, 12));
       return;
     }
-    const results = [];
-    const seen = new Set();
-    CITIES.forEach(c => {
-      if (c.name.toLowerCase().includes(q) || c.region.toLowerCase().includes(q)) {
-        seen.add(c.id);
-        results.push({ city: c, hotels: (byCity[c.id] || []).slice(0, 4) });
-      }
-    });
-    headerHotelsList.filter(h => h.Name?.toLowerCase().includes(q)).forEach(h => {
-      const cid = h.City?.Id;
-      if (cid == null || seen.has(cid)) return;
-      seen.add(cid);
-      const cityObj = CITIES.find(c => c.id === cid) || { id: cid, name: h.City?.Name || '', region: '', country: '' };
-      const matching = (byCity[cid] || []).filter(x => x.Name?.toLowerCase().includes(q));
-      results.push({ city: cityObj, hotels: matching.slice(0, 4) });
-    });
-    setHeaderResults(results);
-  }, [headerDest, headerHotelsList]);
+    setHeaderResults(
+      CITIES.filter(c =>
+        c.name.toLowerCase().includes(q) || c.region.toLowerCase().includes(q)
+      )
+    );
+  }, [headerDest]);
 
   // Close header dropdown on outside click
   useEffect(() => {
@@ -358,13 +323,6 @@ const Hotels = () => {
     setShowHeaderDrop(false);
   };
 
-  const handleHeaderHotelSelect = (hotel) => {
-    setShowHeaderDrop(false);
-    const out = computeCheckOut(searchCheckIn);
-    const p = new URLSearchParams({ checkIn: searchCheckIn, checkOut: out, rooms: searchRooms, roomsConfig: JSON.stringify(searchRoomsConfig) });
-    navigate(`/hotel/${hotel.Id}?${p.toString()}`);
-  };
-
   const handleSearch = () => {
     const targetCityId = headerCity?.id || cityId;
     const targetCityName = headerCity?.name || searchCityName;
@@ -504,33 +462,21 @@ const Hotels = () => {
                 {/* Dropdown */}
                 {showHeaderDrop && headerResults.length > 0 && (
                   <div className="absolute top-[calc(100%+8px)] left-0 w-80 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 max-h-80 overflow-y-auto">
-                    {headerResults.map(({ city, hotels }) => (
-                      <div key={city.id}>
-                        <button
-                          type="button"
-                          onClick={() => handleHeaderCitySelect(city)}
-                          className="w-full text-left px-4 py-2.5 hover:bg-primary-50 flex items-center gap-3 border-b border-gray-50 transition-colors"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
-                            <MapPin size={13} className="text-primary-600" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-semibold text-gray-900">{city.name}</div>
-                            {city.region && <div className="text-xs text-gray-400">{city.region}{city.country ? `, ${city.country}` : ''}</div>}
-                          </div>
-                        </button>
-                        {hotels.map(h => (
-                          <button
-                            key={h.Id}
-                            type="button"
-                            onClick={() => handleHeaderHotelSelect(h)}
-                            className="w-full text-left pl-14 pr-4 py-2 hover:bg-blue-50 flex items-center gap-2.5 border-b border-gray-50 bg-gray-50/30 transition-colors"
-                          >
-                            <HotelIcon size={12} className="text-gray-400 flex-shrink-0" />
-                            <span className="text-xs text-gray-700 truncate">{h.Name}</span>
-                          </button>
-                        ))}
-                      </div>
+                    {headerResults.map(city => (
+                      <button
+                        key={city.id}
+                        type="button"
+                        onClick={() => handleHeaderCitySelect(city)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-primary-50 flex items-center gap-3 border-b border-gray-50 transition-colors"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
+                          <MapPin size={13} className="text-primary-600" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">{city.name}</div>
+                          {city.region && <div className="text-xs text-gray-400">{city.region}{city.country ? `, ${city.country}` : ''}</div>}
+                        </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -666,7 +612,7 @@ const Hotels = () => {
                 <div className="flex items-center gap-1.5 bg-gray-100 px-3 py-2 rounded-xl">
                   <HotelIcon size={13} className="text-gray-500" />
                   <span className="text-sm font-bold text-gray-700 whitespace-nowrap">
-                    {filteredHotels.length}
+                    {filteredHotels.length}{total > hotels.length ? ` / ${total}` : ''}
                   </span>
                 </div>
               )}
@@ -952,15 +898,40 @@ const Hotels = () => {
               <>
                 <div className="space-y-6">
                   {filteredHotels.map((hotel) => (
-                    <HotelResultCard 
-                      key={hotel.Id} 
-                      hotel={hotel} 
-                      checkIn={searchCheckIn} 
+                    <HotelResultCard
+                      key={hotel.Id}
+                      hotel={hotel}
+                      checkIn={searchCheckIn}
                       checkOut={searchCheckOut}
                       roomsConfig={searchRoomsConfig}
                     />
                   ))}
                 </div>
+
+                {/* Load more */}
+                {(hasMore || loadingMore) && (
+                  <div className="flex flex-col items-center gap-3 mt-8 mb-4">
+                    <button
+                      onClick={loadMoreHotels}
+                      disabled={loadingMore}
+                      className="flex items-center gap-2.5 px-8 py-3 bg-primary-700 hover:bg-primary-800 active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 text-white font-semibold rounded-xl transition-all shadow-sm hover:shadow-md"
+                    >
+                      {loadingMore
+                        ? <><Loader2 size={16} className="animate-spin" />{language === 'fr' ? 'Chargement…' : language === 'ar' ? 'جاري التحميل…' : 'Loading…'}</>
+                        : <>{language === 'fr' ? 'Voir plus d\'hôtels' : language === 'ar' ? 'عرض المزيد من الفنادق' : 'Load more hotels'}</>
+                      }
+                    </button>
+                    {total > 0 && (
+                      <p className="text-xs text-gray-400">
+                        {language === 'fr'
+                          ? `${hotels.length} sur ${total} hôtels affichés`
+                          : language === 'ar'
+                          ? `${hotels.length} من أصل ${total} فندق`
+                          : `Showing ${hotels.length} of ${total} hotels`}
+                      </p>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
