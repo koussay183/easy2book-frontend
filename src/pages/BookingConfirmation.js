@@ -1,468 +1,425 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  CheckCircle, Home, Mail, Phone, Calendar, Users, CreditCard,
-  Building2, Copy, ExternalLink, ArrowRight, Clock,
-  FileText, User, Utensils
+import {
+  CheckCircle2, Home, Mail, Phone, Calendar, Users, CreditCard,
+  Building2, Copy, ArrowRight, FileText, User, Utensils,
+  MapPin, Clock, Moon, Star, Banknote, AlertCircle, Check
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { API_ENDPOINTS } from '../config/api';
 
+/* ─── mini Card wrapper ───────────────────────────────────────────── */
+const Card = ({ children, className = '' }) => (
+  <div className={`bg-white rounded-2xl border border-gray-200 overflow-hidden ${className}`}>
+    {children}
+  </div>
+);
+const CardHeader = ({ icon: Icon, title, color = 'text-primary-600' }) => (
+  <div className="flex items-center gap-2.5 px-5 py-4 border-b border-gray-100">
+    <Icon size={16} className={color} />
+    <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+  </div>
+);
+const Row = ({ label, value, mono }) => (
+  <div className="flex items-start justify-between gap-4 py-2.5 border-b border-gray-50 last:border-0">
+    <span className="text-xs text-gray-400 flex-shrink-0">{label}</span>
+    <span className={`text-xs font-semibold text-gray-800 text-right ${mono ? 'font-mono' : ''}`}>{value}</span>
+  </div>
+);
+
+/* ─── Copy button ────────────────────────────────────────────────── */
+const CopyBtn = ({ text }) => {
+  const [done, setDone] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(text);
+    setDone(true);
+    setTimeout(() => setDone(false), 2000);
+  };
+  return (
+    <button onClick={copy} className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary-600 transition-colors px-2 py-1 rounded-lg hover:bg-primary-50">
+      {done ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+      <span>{done ? 'Copié' : 'Copier'}</span>
+    </button>
+  );
+};
+
+/* ══════════════════════ MAIN ════════════════════════════════════════ */
 const BookingConfirmation = () => {
-  const { language } = useLanguage();
-  const isRTL = language === 'ar';
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { booking, paymentMethod, isGuest } = location.state || {};
+  const { language }                 = useLanguage();
+  const isRTL                        = language === 'ar';
+  const navigate                     = useNavigate();
+  const location                     = useLocation();
+  const { booking, paymentMethod: pm, isGuest } = location.state || {};
+  const paymentMethod                = pm || booking?.paymentMethod || 'agency';
+  const paymentPlan                  = booking?.paymentPlan || 'full';
+  const [settings,   setSettings]    = useState(null);
+  const [copied,     setCopied]      = useState(false);
+
+  useEffect(() => { window.scrollTo(0, 0); }, []);
 
   useEffect(() => {
-    // Scroll to top on mount
-    window.scrollTo(0, 0);
-    
-    // Note: For online payments, booking is created AFTER payment
-    // So this page is only used for agency payments
-    // Online payment confirmation happens in PaymentCallback page
+    fetch(API_ENDPOINTS.PUBLIC_SETTINGS)
+      .then(r => r.json())
+      .then(d => { if (d.status === 'success') setSettings(d.data); })
+      .catch(() => {});
   }, []);
-  
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    alert(language === 'fr' 
-      ? 'Code de confirmation copié !' 
-      : language === 'ar' 
-      ? 'تم نسخ رمز التأكيد!' 
-      : 'Confirmation code copied!');
-  };
 
   if (!booking) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-        <div className="text-center bg-white rounded-2xl shadow-xl p-8 max-w-md" dir={isRTL ? 'rtl' : 'ltr'}>
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Home className="text-red-600" size={32} />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" dir={isRTL ? 'rtl' : 'ltr'}>
+        <Card className="p-8 max-w-md w-full text-center">
+          <div className="w-14 h-14 bg-red-50 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <AlertCircle size={24} className="text-red-500" />
           </div>
-          <p className="text-xl font-bold text-gray-900 mb-2">
+          <p className="font-semibold text-gray-900 mb-2">
             {language === 'fr' ? 'Aucune réservation trouvée' : language === 'ar' ? 'لم يتم العثور على حجز' : 'No booking found'}
           </p>
-          <p className="text-gray-600 mb-6">
-            {language === 'fr' ? 'Cette page est accessible uniquement après une réservation' : language === 'ar' ? 'هذه الصفحة متاحة فقط بعد الحجز' : 'This page is only accessible after booking'}
+          <p className="text-sm text-gray-400 mb-6">
+            {language === 'fr' ? 'Cette page est accessible après une réservation.' : language === 'ar' ? 'هذه الصفحة متاحة بعد الحجز.' : 'This page is only accessible after booking.'}
           </p>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
-          >
-            {language === 'fr' ? 'Retour à l\'accueil' : language === 'ar' ? 'العودة للرئيسية' : 'Back to home'}
+          <button onClick={() => navigate('/')}
+            className="bg-primary-700 hover:bg-primary-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors">
+            {language === 'fr' ? 'Retour à l\'accueil' : language === 'ar' ? 'الرئيسية' : 'Back to home'}
           </button>
-        </div>
+        </Card>
       </div>
     );
   }
 
-  const t = {
-    success: language === 'fr' ? 'Réservation confirmée !' : language === 'ar' ? 'تم تأكيد الحجز!' : 'Booking Confirmed!',
-    successMsg: language === 'fr' 
-      ? 'Votre réservation a été créée avec succès. Vous recevrez un email de confirmation.' 
-      : language === 'ar'
-      ? 'تم إنشاء حجزك بنجاح. ستتلقى بريدًا إلكترونيًا للتأكيد.'
-      : 'Your booking has been created successfully. You will receive a confirmation email.',
-    confirmationCode: language === 'fr' ? 'Code de confirmation' : language === 'ar' ? 'رمز التأكيد' : 'Confirmation Code',
-    copy: language === 'fr' ? 'Copier' : language === 'ar' ? 'نسخ' : 'Copy',
-    bookingDetails: language === 'fr' ? 'Détails de la réservation' : language === 'ar' ? 'تفاصيل الحجز' : 'Booking Details',
-    hotelInfo: language === 'fr' ? 'Informations de l\'hôtel' : language === 'ar' ? 'معلومات الفندق' : 'Hotel Information',
-    stayDates: language === 'fr' ? 'Dates de séjour' : language === 'ar' ? 'تواريخ الإقامة' : 'Stay Dates',
-    checkIn: language === 'fr' ? 'Arrivée' : language === 'ar' ? 'الوصول' : 'Check-in',
-    checkOut: language === 'fr' ? 'Départ' : language === 'ar' ? 'المغادرة' : 'Check-out',
-    nights: language === 'fr' ? 'nuits' : language === 'ar' ? 'ليالي' : 'nights',
-    night: language === 'fr' ? 'nuit' : language === 'ar' ? 'ليلة' : 'night',
-    guests: language === 'fr' ? 'Voyageurs' : language === 'ar' ? 'المسافرين' : 'Guests',
-    adults: language === 'fr' ? 'adultes' : language === 'ar' ? 'كبار' : 'adults',
-    adult: language === 'fr' ? 'adulte' : language === 'ar' ? 'كبير' : 'adult',
-    children: language === 'fr' ? 'enfants' : language === 'ar' ? 'أطفال' : 'children',
-    child: language === 'fr' ? 'enfant' : language === 'ar' ? 'طفل' : 'child',
-    paymentInfo: language === 'fr' ? 'Informations de paiement' : language === 'ar' ? 'معلومات الدفع' : 'Payment Information',
-    paymentMethod: language === 'fr' ? 'Mode de paiement' : language === 'ar' ? 'طريقة الدفع' : 'Payment Method',
-    paymentStatus: language === 'fr' ? 'Statut' : language === 'ar' ? 'الحالة' : 'Status',
-    totalAmount: language === 'fr' ? 'Montant total' : language === 'ar' ? 'المبلغ الإجمالي' : 'Total Amount',
-    contactInfo: language === 'fr' ? 'Coordonnées de contact' : language === 'ar' ? 'معلومات الاتصال' : 'Contact Information',
-    specialRequests: language === 'fr' ? 'Demandes spéciales' : language === 'ar' ? 'طلبات خاصة' : 'Special Requests',
-    travelerInfo: language === 'fr' ? 'Informations des voyageurs' : language === 'ar' ? 'معلومات المسافرين' : 'Traveler Information',
-    backHome: language === 'fr' ? 'Retour à l\'accueil' : language === 'ar' ? 'العودة للرئيسية' : 'Back to Home',
-    viewBookings: language === 'fr' ? 'Mes réservations' : language === 'ar' ? 'حجوزاتي' : 'My Bookings',
-    trackBooking: language === 'fr' ? 'Suivre ma réservation' : language === 'ar' ? 'تتبع حجزي' : 'Track My Booking',
-    whatNext: language === 'fr' ? 'Prochaines étapes' : language === 'ar' ? 'الخطوات التالية' : 'What\'s Next',
-    step1: language === 'fr' ? 'Vérifiez votre email' : language === 'ar' ? 'تحقق من بريدك الإلكتروني' : 'Check your email',
-    step1Desc: language === 'fr' 
-      ? 'Vous recevrez un email de confirmation avec tous les détails' 
-      : language === 'ar'
-      ? 'ستتلقى بريدًا إلكترونيًا للتأكيد مع جميع التفاصيل'
-      : 'You will receive a confirmation email with all details',
-    step2: language === 'fr' ? 'Complétez le paiement' : language === 'ar' ? 'أكمل الدفع' : 'Complete Payment',
-    step2Desc: language === 'fr' 
-      ? 'Suivez les instructions pour finaliser le paiement' 
-      : language === 'ar'
-      ? 'اتبع التعليمات لإتمام الدفع'
-      : 'Follow the instructions to finalize payment',
-    step3: language === 'fr' ? 'Préparez votre voyage' : language === 'ar' ? 'جهز رحلتك' : 'Prepare Your Trip',
-    step3Desc: language === 'fr' 
-      ? 'Gardez votre code de confirmation pour le check-in' 
-      : language === 'ar'
-      ? 'احتفظ برمز التأكيد لتسجيل الوصول'
-      : 'Keep your confirmation code for check-in',
-    online: language === 'fr' ? 'Paiement en ligne' : language === 'ar' ? 'الدفع عبر الإنترنت' : 'Online Payment',
-    agency: language === 'fr' ? 'Paiement à l\'agence Easy2Book' : language === 'ar' ? 'الدفع في وكالة Easy2Book' : 'Pay at Easy2Book Agency',
-    wafacash: 'Wafacash',
-    izi: 'Izi',
-    pending: language === 'fr' ? 'En attente' : language === 'ar' ? 'قيد الانتظار' : 'Pending',
-    confirmed: language === 'fr' ? 'Confirmé' : language === 'ar' ? 'مؤكد' : 'Confirmed',
-    holder: language === 'fr' ? 'Titulaire' : language === 'ar' ? 'صاحب الحجز' : 'Holder',
-    boarding: language === 'fr' ? 'Pension' : language === 'ar' ? 'نظام الإقامة' : 'Board Type',
+  /* ── derived data ── */
+  const checkIn   = new Date(booking.hotelBooking.CheckIn);
+  const checkOut  = new Date(booking.hotelBooking.CheckOut);
+  const nights    = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+  const room      = booking.hotelBooking.Rooms[0];
+  const adults    = room?.Pax?.Adult || [];
+  const children  = room?.Pax?.Child || [];
+  const holder    = adults.find(a => a.Holder) || adults[0];
+  const currency  = booking.currency || 'TND';
+
+  const fmt = (d) => new Date(d).toLocaleDateString(
+    language === 'fr' ? 'fr-FR' : language === 'ar' ? 'ar-TN' : 'en-US',
+    { day: 'numeric', month: 'short', year: 'numeric' }
+  );
+
+  /* ── payment method config ── */
+  const methodMeta = {
+    agency:   { label: language === 'fr' ? 'Agence Easy2Book' : language === 'ar' ? 'وكالة Easy2Book' : 'Easy2Book Agency',   color: 'bg-primary-50 border-primary-200 text-primary-700', icon: Building2 },
+    wafacash: { label: 'Wafacash',  color: 'bg-orange-50 border-orange-200 text-orange-700', icon: Banknote },
+    izi:      { label: 'Izi',       color: 'bg-violet-50 border-violet-200 text-violet-700', icon: Banknote },
+    online:   { label: language === 'fr' ? 'Paiement en ligne' : language === 'ar' ? 'الدفع عبر الإنترنت' : 'Online Payment', color: 'bg-blue-50 border-blue-200 text-blue-700', icon: CreditCard },
+  };
+  const meta = methodMeta[paymentMethod] || methodMeta.agency;
+
+  /* ── payment instructions block ── */
+  const PaymentInstructions = () => {
+    const s = settings;
+
+    if (paymentMethod === 'wafacash' && s?.wafacash) {
+      const w = s.wafacash;
+      return (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500">
+            {language === 'fr'
+              ? `Effectuez un virement Wafacash du montant de `
+              : language === 'ar' ? 'أرسل مبلغ ' : 'Transfer '}
+            <strong className="text-gray-900">{parseFloat(booking.totalPrice).toFixed(2)} {currency}</strong>
+            {language === 'fr' ? ' vers le compte suivant :' : language === 'ar' ? ' إلى الحساب التالي:' : ' to the following account:'}
+          </p>
+          {w.rib && (
+            <div className="bg-orange-50 border border-orange-100 rounded-xl p-4">
+              <p className="text-[10px] text-orange-600 font-semibold uppercase tracking-wide mb-1">RIB</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-mono text-sm font-bold text-gray-900 tracking-wider" dir="ltr">{w.rib}</p>
+                <CopyBtn text={w.rib} />
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            {w.accountName && <div className="bg-gray-50 rounded-lg p-3"><p className="text-gray-400 mb-0.5">{language === 'fr' ? 'Titulaire' : 'Account name'}</p><p className="font-semibold text-gray-800">{w.accountName}</p></div>}
+            {w.bankName    && <div className="bg-gray-50 rounded-lg p-3"><p className="text-gray-400 mb-0.5">{language === 'fr' ? 'Etablissement' : 'Bank'}</p><p className="font-semibold text-gray-800">{w.bankName}</p></div>}
+            {w.phone       && <div className="bg-gray-50 rounded-lg p-3 flex items-center gap-2"><Phone size={11} className="text-orange-500 flex-shrink-0" /><div><p className="text-gray-400 mb-0.5">Téléphone</p><p className="font-semibold text-gray-800" dir="ltr">{w.phone}</p></div></div>}
+          </div>
+          {w.instructions && <p className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3 italic">{w.instructions}</p>}
+          <div className="flex items-start gap-2 text-xs text-orange-700 bg-orange-50 border border-orange-100 rounded-lg p-3">
+            <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
+            <span>
+              {language === 'fr'
+                ? `Indiquez votre code de confirmation `
+                : language === 'ar' ? 'أذكر كود التأكيد '
+                : 'Include your confirmation code '}
+              <strong className="font-mono">{booking.confirmationCode}</strong>
+              {language === 'fr' ? ' en référence du virement.' : language === 'ar' ? ' كمرجع للتحويل.' : ' as the transfer reference.'}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    if (paymentMethod === 'izi' && s?.izi) {
+      const iz = s.izi;
+      return (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500">
+            {language === 'fr' ? 'Effectuez un paiement Izi de ' : language === 'ar' ? 'أرسل مبلغ ' : 'Transfer '}
+            <strong className="text-gray-900">{parseFloat(booking.totalPrice).toFixed(2)} {currency}</strong>
+            {language === 'fr' ? ' vers :' : language === 'ar' ? ' إلى:' : ' to:'}
+          </p>
+          {iz.rib && (
+            <div className="bg-violet-50 border border-violet-100 rounded-xl p-4">
+              <p className="text-[10px] text-violet-600 font-semibold uppercase tracking-wide mb-1">RIB</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-mono text-sm font-bold text-gray-900 tracking-wider" dir="ltr">{iz.rib}</p>
+                <CopyBtn text={iz.rib} />
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            {iz.accountName && <div className="bg-gray-50 rounded-lg p-3"><p className="text-gray-400 mb-0.5">{language === 'fr' ? 'Titulaire' : 'Account name'}</p><p className="font-semibold text-gray-800">{iz.accountName}</p></div>}
+            {iz.bankName    && <div className="bg-gray-50 rounded-lg p-3"><p className="text-gray-400 mb-0.5">{language === 'fr' ? 'Plateforme' : 'Platform'}</p><p className="font-semibold text-gray-800">{iz.bankName}</p></div>}
+            {iz.phone       && <div className="bg-gray-50 rounded-lg p-3 flex items-center gap-2"><Phone size={11} className="text-violet-500 flex-shrink-0" /><div><p className="text-gray-400 mb-0.5">Téléphone</p><p className="font-semibold text-gray-800" dir="ltr">{iz.phone}</p></div></div>}
+          </div>
+          {iz.instructions && <p className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3 italic">{iz.instructions}</p>}
+          <div className="flex items-start gap-2 text-xs text-violet-700 bg-violet-50 border border-violet-100 rounded-lg p-3">
+            <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
+            <span>
+              {language === 'fr' ? 'Indiquez votre code ' : language === 'ar' ? 'أذكر كود ' : 'Include code '}
+              <strong className="font-mono">{booking.confirmationCode}</strong>
+              {language === 'fr' ? ' en référence.' : language === 'ar' ? ' كمرجع.' : ' as reference.'}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    if (paymentMethod === 'agency' && s?.agency) {
+      const ag = s.agency;
+      return (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500">
+            {language === 'fr' ? 'Présentez-vous dans notre agence pour finaliser votre réservation.' : language === 'ar' ? 'تفضل إلى وكالتنا لإتمام الحجز.' : 'Visit our agency to complete your booking.'}
+          </p>
+          <div className="grid grid-cols-1 gap-2 text-xs">
+            {ag.address && (
+              <div className="flex items-start gap-2 bg-gray-50 rounded-lg p-3">
+                <MapPin size={12} className="text-primary-500 mt-0.5 flex-shrink-0" />
+                <div><p className="text-gray-400 mb-0.5">{language === 'fr' ? 'Adresse' : 'Address'}</p><p className="font-semibold text-gray-800">{ag.address}</p></div>
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {ag.phone && (
+                <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-3">
+                  <Phone size={12} className="text-primary-500 flex-shrink-0" />
+                  <div><p className="text-gray-400 mb-0.5 text-[10px]">{language === 'fr' ? 'Téléphone' : 'Phone'}</p><p className="font-semibold text-gray-800" dir="ltr">{ag.phone}</p></div>
+                </div>
+              )}
+              {ag.email && (
+                <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-3">
+                  <Mail size={12} className="text-primary-500 flex-shrink-0" />
+                  <div><p className="text-gray-400 mb-0.5 text-[10px]">Email</p><p className="font-semibold text-gray-800">{ag.email}</p></div>
+                </div>
+              )}
+              {ag.hours && (
+                <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-3">
+                  <Clock size={12} className="text-primary-500 flex-shrink-0" />
+                  <div><p className="text-gray-400 mb-0.5 text-[10px]">{language === 'fr' ? 'Horaires' : 'Hours'}</p><p className="font-semibold text-gray-800">{ag.hours}</p></div>
+                </div>
+              )}
+            </div>
+          </div>
+          {ag.instructions && <p className="text-xs text-gray-500 bg-primary-50 border border-primary-100 rounded-lg p-3 italic">{ag.instructions}</p>}
+        </div>
+      );
+    }
+
+    if (paymentMethod === 'online') {
+      const planLabel = paymentPlan === 'installment'
+        ? (language === 'fr' ? 'paiement en tranches' : language === 'ar' ? 'دفع مقسّط' : 'installment payment')
+        : (language === 'fr' ? 'paiement total' : language === 'ar' ? 'دفع كامل' : 'full payment');
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-800">
+            <CheckCircle2 size={13} className="flex-shrink-0 text-blue-500" />
+            <span>
+              {language === 'fr' ? `Votre ${planLabel} est en cours de traitement.` : language === 'ar' ? `${planLabel} — جاري المعالجة.` : `Your ${planLabel} is being processed.`}
+            </span>
+          </div>
+          {s?.online?.instructions && <p className="text-xs text-gray-500 italic bg-gray-50 rounded-lg p-3">{s.online.instructions}</p>}
+        </div>
+      );
+    }
+
+    /* fallback when settings not yet loaded */
+    return (
+      <div className="text-xs text-gray-400 italic py-2">
+        {language === 'fr' ? 'Chargement des instructions...' : 'Loading instructions...'}
+      </div>
+    );
   };
 
-  // Calculate nights
-  const checkIn = new Date(booking.hotelBooking.CheckIn);
-  const checkOut = new Date(booking.hotelBooking.CheckOut);
-  const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-
-  // Get room info
-  const room = booking.hotelBooking.Rooms[0];
-  const adults = room?.Pax?.Adult || [];
-  const children = room?.Pax?.Child || [];
-
-  // Get payment method text
-  const paymentMethodText = paymentMethod === 'online'
-    ? t.online
-    : paymentMethod === 'wafacash'
-      ? t.wafacash
-      : paymentMethod === 'izi'
-        ? t.izi
-        : t.agency;
-
+  /* ══════ RENDER ══════ */
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-gray-50 py-8 px-4" dir={isRTL ? 'rtl' : 'ltr'}>
-      <div className="max-w-4xl mx-auto">
-        {/* Success Header */}
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden mb-6 border-4 border-green-500">
-          <div className="bg-gradient-to-r from-green-600 to-green-700 p-8 text-center">
-            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-              <CheckCircle className="text-green-600" size={48} />
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
-              {t.success}
-            </h1>
-            <p className="text-green-100 text-lg max-w-2xl mx-auto">
-              {t.successMsg}
-            </p>
-          </div>
+    <div className="min-h-screen bg-gray-50 py-8 px-4" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="max-w-3xl mx-auto space-y-4">
 
-          {/* Confirmation Code */}
-          <div className="bg-gradient-to-br from-gray-50 to-white p-6 border-b-2 border-gray-200">
-            <p className="text-sm font-semibold text-gray-600 text-center mb-2 uppercase tracking-wide">
-              {t.confirmationCode}
-            </p>
-            <div className="flex items-center justify-center gap-3 flex-wrap">
-              <div className="bg-white border-4 border-green-500 rounded-xl px-6 py-4 inline-flex items-center gap-3 shadow-lg">
-                <span className="text-3xl sm:text-4xl font-bold text-green-600 font-mono tracking-wider" dir="ltr">
-                  {booking.confirmationCode}
-                </span>
-                <button
-                  onClick={() => copyToClipboard(booking.confirmationCode)}
-                  className="p-2 hover:bg-green-100 rounded-lg transition-colors group"
-                  title={t.copy}
-                >
-                  <Copy size={24} className="text-green-600 group-hover:text-green-700" />
-                </button>
-              </div>
+        {/* ── Success banner ── */}
+        <div className="bg-primary-700 rounded-2xl p-6 text-center text-white">
+          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+            <CheckCircle2 size={24} className="text-white" />
+          </div>
+          <h1 className="text-xl font-bold mb-1">
+            {language === 'fr' ? 'Réservation créée !' : language === 'ar' ? 'تم إنشاء الحجز!' : 'Booking created!'}
+          </h1>
+          <p className="text-white/80 text-sm max-w-sm mx-auto">
+            {language === 'fr' ? 'Votre réservation est enregistrée. Suivez les instructions ci-dessous pour la valider.' : language === 'ar' ? 'حجزك مسجّل. اتبع التعليمات أدناه لإتمامه.' : 'Your booking is registered. Follow the instructions below to complete it.'}
+          </p>
+
+          {/* Confirmation code */}
+          <div className="mt-4 inline-flex items-center gap-3 bg-white/15 border border-white/30 rounded-xl px-4 py-3">
+            <div>
+              <p className="text-white/60 text-[10px] uppercase tracking-wide mb-0.5">
+                {language === 'fr' ? 'Code de confirmation' : language === 'ar' ? 'كود التأكيد' : 'Confirmation Code'}
+              </p>
+              <p className="font-mono text-xl font-bold tracking-widest" dir="ltr">{booking.confirmationCode}</p>
             </div>
+            <button
+              onClick={() => { navigator.clipboard.writeText(booking.confirmationCode); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+              className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors flex-shrink-0"
+              title="Copier"
+            >
+              {copied ? <Check size={14} className="text-green-300" /> : <Copy size={14} className="text-white" />}
+            </button>
           </div>
         </div>
 
-        {/* What's Next Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <ArrowRight size={24} className="text-primary-600" />
-            {t.whatNext}
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border-2 border-blue-200">
-              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-3">
-                <Mail className="text-white" size={24} />
+        {/* ── Next step: Payment instructions ── */}
+        <Card>
+          <div className={`flex items-center justify-between px-5 py-4 border-b border-gray-100 ${meta.color} border-l-4`}>
+            <div className="flex items-center gap-2.5">
+              <meta.icon size={16} />
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                  {language === 'fr' ? 'Prochaine étape' : language === 'ar' ? 'الخطوة التالية' : 'Next step'}
+                </p>
+                <p className="text-sm font-bold">{meta.label}</p>
               </div>
-              <h3 className="font-bold text-gray-900 mb-2">1. {t.step1}</h3>
-              <p className="text-sm text-gray-700">{t.step1Desc}</p>
             </div>
-            
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 border-2 border-green-200">
-              <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center mb-3">
-                <CreditCard className="text-white" size={24} />
-              </div>
-              <h3 className="font-bold text-gray-900 mb-2">2. {t.step2}</h3>
-              <p className="text-sm text-gray-700">{t.step2Desc}</p>
-            </div>
-            
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 border-2 border-purple-200">
-              <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center mb-3">
-                <CheckCircle className="text-white" size={24} />
-              </div>
-              <h3 className="font-bold text-gray-900 mb-2">3. {t.step3}</h3>
-              <p className="text-sm text-gray-700">{t.step3Desc}</p>
-            </div>
+            <span className="text-lg font-bold" dir="ltr">
+              {parseFloat(booking.totalPrice).toFixed(2)} <span className="text-sm font-medium opacity-70">{currency}</span>
+            </span>
           </div>
-        </div>
-
-        {/* Booking Details */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mb-6">
-          <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-4">
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <FileText size={24} />
-              {t.bookingDetails}
-            </h2>
+          <div className="p-5">
+            <PaymentInstructions />
           </div>
+        </Card>
 
-          <div className="p-6 space-y-6">
-            {/* Stay Dates */}
-            <div className="border-2 border-gray-200 rounded-xl p-5 bg-gradient-to-br from-gray-50 to-white">
-              <div className={`flex items-center gap-2 mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <Calendar size={20} className="text-primary-600" />
-                <h3 className="font-bold text-gray-900">{t.stayDates}</h3>
+        {/* ── Booking summary ── */}
+        <Card>
+          <CardHeader icon={FileText} title={language === 'fr' ? 'Récapitulatif de la réservation' : language === 'ar' ? 'ملخص الحجز' : 'Booking Summary'} />
+          <div className="p-5 space-y-4">
+
+            {/* Dates & nights */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-gray-50 rounded-xl p-3 text-center">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">{language === 'fr' ? 'Arrivée' : language === 'ar' ? 'الوصول' : 'Check-in'}</p>
+                <p className="text-xs font-bold text-gray-900">{fmt(booking.hotelBooking.CheckIn)}</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">{t.checkIn}</p>
-                  <p className="text-lg font-bold text-gray-900" dir="ltr">
-                    {booking.hotelBooking.CheckIn}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">{t.checkOut}</p>
-                  <p className="text-lg font-bold text-gray-900" dir="ltr">
-                    {booking.hotelBooking.CheckOut}
-                  </p>
-                </div>
+              <div className="bg-primary-50 border border-primary-100 rounded-xl p-3 text-center">
+                <p className="text-[10px] text-primary-500 uppercase tracking-wide mb-1">
+                  <Moon size={10} className="inline mr-0.5" />{language === 'fr' ? 'Nuits' : language === 'ar' ? 'ليالي' : 'Nights'}
+                </p>
+                <p className="text-xl font-bold text-primary-700">{nights}</p>
               </div>
-              <div className="mt-3 flex items-center gap-2 text-primary-600">
-                <Clock size={16} />
-                <span className="font-semibold">
-                  {nights} {nights === 1 ? t.night : t.nights}
-                </span>
+              <div className="bg-gray-50 rounded-xl p-3 text-center">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">{language === 'fr' ? 'Départ' : language === 'ar' ? 'المغادرة' : 'Check-out'}</p>
+                <p className="text-xs font-bold text-gray-900">{fmt(booking.hotelBooking.CheckOut)}</p>
               </div>
             </div>
 
-            {/* Room & Boarding */}
-            <div className="border-2 border-gray-200 rounded-xl p-5 bg-gradient-to-br from-gray-50 to-white">
-              <div className={`flex items-center gap-2 mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <Home size={20} className="text-primary-600" />
-                <h3 className="font-bold text-gray-900">{t.hotelInfo}</h3>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">
-                    {language === 'fr' ? 'Chambre' : language === 'ar' ? 'الغرفة' : 'Room'}
-                  </p>
-                  <p className="font-semibold text-gray-900">
-                    {language === 'fr' ? 'Chambre' : language === 'ar' ? 'غرفة' : 'Room'} #{room.Id}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">{t.boarding}</p>
-                  <div className="inline-flex items-center gap-2 bg-primary-100 text-primary-700 px-3 py-1.5 rounded-lg border border-primary-300">
-                    <Utensils size={16} />
-                    <span className="font-bold">
-                      {language === 'fr' ? 'Pension' : language === 'ar' ? 'نظام' : 'Boarding'} {room.Boarding}
-                    </span>
-                  </div>
-                </div>
-              </div>
+            {/* Room / boarding / guests */}
+            <div className="divide-y divide-gray-50">
+              <Row label={language === 'fr' ? 'Chambre' : language === 'ar' ? 'الغرفة' : 'Room'} value={`#${room.Id}`} mono />
+              <Row
+                label={language === 'fr' ? 'Pension' : language === 'ar' ? 'الإقامة' : 'Board'}
+                value={room.Boarding}
+              />
+              <Row
+                label={language === 'fr' ? 'Voyageurs' : language === 'ar' ? 'المسافرون' : 'Guests'}
+                value={`${adults.length} ${language === 'fr' ? 'adulte(s)' : language === 'ar' ? 'بالغ' : 'adult(s)'}${children.length > 0 ? ` + ${children.length} ${language === 'fr' ? 'enfant(s)' : language === 'ar' ? 'طفل' : 'child(ren)'}` : ''}`}
+              />
             </div>
 
-            {/* Guests */}
-            <div className="border-2 border-gray-200 rounded-xl p-5 bg-gradient-to-br from-gray-50 to-white">
-              <div className={`flex items-center gap-2 mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <Users size={20} className="text-primary-600" />
-                <h3 className="font-bold text-gray-900">{t.guests}</h3>
-              </div>
-              <div className="flex items-center gap-4 text-gray-900">
-                <span className="font-semibold">
-                  {adults.length} {adults.length === 1 ? t.adult : t.adults}
-                </span>
-                {children.length > 0 && (
-                  <>
-                    <span className="text-gray-400">+</span>
-                    <span className="font-semibold">
-                      {children.length} {children.length === 1 ? t.child : t.children}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Traveler Information */}
-            {adults.length > 0 && (
-              <div className="border-2 border-blue-200 rounded-xl p-5 bg-gradient-to-br from-blue-50 to-white">
-                <div className={`flex items-center gap-2 mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <User size={20} className="text-blue-600" />
-                  <h3 className="font-bold text-gray-900">{t.travelerInfo}</h3>
+            {/* Holder */}
+            {holder && (
+              <div className="flex items-center gap-2.5 bg-gray-50 rounded-xl p-3">
+                <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <User size={14} className="text-primary-600" />
                 </div>
-                <div className="space-y-3">
-                  {adults.map((adult, index) => (
-                    <div key={index} className="bg-white rounded-lg p-3 border border-blue-200">
-                      <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <div>
-                          <span className="font-semibold text-gray-900">
-                            {adult.Civility} {adult.Name} {adult.Surname}
-                          </span>
-                        </div>
-                        {adult.Holder && (
-                          <span className="bg-green-100 text-green-700 px-2 py-1 rounded-md text-xs font-bold border border-green-300">
-                            {t.holder}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {children.map((child, index) => (
-                    <div key={index} className="bg-white rounded-lg p-3 border border-blue-200">
-                      <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <span className="font-semibold text-gray-900">
-                          {child.Name} {child.Surname}
-                        </span>
-                        <span className="text-sm text-gray-600">
-                          {language === 'fr' ? 'Âge' : language === 'ar' ? 'العمر' : 'Age'}: {child.Age}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                <div>
+                  <p className="text-[10px] text-gray-400">{language === 'fr' ? 'Titulaire' : language === 'ar' ? 'صاحب الحجز' : 'Holder'}</p>
+                  <p className="text-sm font-semibold text-gray-900">{holder.Civility} {holder.Name} {holder.Surname}</p>
                 </div>
               </div>
             )}
-
-            {/* Contact Information */}
-            <div className="border-2 border-gray-200 rounded-xl p-5 bg-gradient-to-br from-gray-50 to-white">
-              <div className={`flex items-center gap-2 mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <Mail size={20} className="text-primary-600" />
-                <h3 className="font-bold text-gray-900">{t.contactInfo}</h3>
-              </div>
-              <div className="space-y-3">
-                {booking.isGuest && booking.guestInfo && (
-                  <div>
-                    <div className={`flex items-center gap-2 mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      <User size={16} className="text-gray-600" />
-                      <p className="text-sm text-gray-600">
-                        {language === 'fr' ? 'Nom' : language === 'ar' ? 'الاسم' : 'Name'}
-                      </p>
-                    </div>
-                    <p className="font-semibold text-gray-900">{booking.guestInfo.name}</p>
-                  </div>
-                )}
-                <div>
-                  <div className={`flex items-center gap-2 mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <Mail size={16} className="text-gray-600" />
-                    <p className="text-sm text-gray-600">Email</p>
-                  </div>
-                  <p className="font-semibold text-gray-900" dir="ltr">{booking.contactEmail}</p>
-                </div>
-                <div>
-                  <div className={`flex items-center gap-2 mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <Phone size={16} className="text-gray-600" />
-                    <p className="text-sm text-gray-600">
-                      {language === 'fr' ? 'Téléphone' : language === 'ar' ? 'الهاتف' : 'Phone'}
-                    </p>
-                  </div>
-                  <p className="font-semibold text-gray-900" dir="ltr">{booking.contactPhone}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Information */}
-            <div className="border-2 border-green-200 rounded-xl p-5 bg-gradient-to-br from-green-50 to-white">
-              <div className={`flex items-center gap-2 mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <CreditCard size={20} className="text-green-600" />
-                <h3 className="font-bold text-gray-900">{t.paymentInfo}</h3>
-              </div>
-              <div className="space-y-3">
-                <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <span className="text-gray-600">{t.paymentMethod}</span>
-                  <span className="font-bold text-gray-900 flex items-center gap-2">
-                    {paymentMethod === 'online'
-                      ? <CreditCard size={16} />
-                      : paymentMethod === 'wafacash'
-                        ? <span style={{color:'#EA6913',fontWeight:'bold',fontSize:'12px'}}>WC</span>
-                        : paymentMethod === 'izi'
-                          ? <span style={{color:'#6D28D9',fontWeight:'bold',fontSize:'12px'}}>izi</span>
-                          : <Building2 size={16} />
-                    }
-                    {paymentMethodText}
-                  </span>
-                </div>
-                <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <span className="text-gray-600">{t.paymentStatus}</span>
-                  <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-sm font-bold border border-yellow-300">
-                    {t.pending}
-                  </span>
-                </div>
-                <div className="border-t-2 border-green-300 pt-3 mt-3">
-                  <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <span className="text-lg font-bold text-gray-900">{t.totalAmount}</span>
-                    <div className="text-right" dir="ltr">
-                      <div className="text-3xl font-bold text-green-600">
-                        {parseFloat(booking.totalPrice).toFixed(2)} <span className="text-lg">{booking.currency}</span>
-                      </div>
-                      <p className="text-xs text-gray-600 mt-1">
-                        {(parseFloat(booking.totalPrice) / nights).toFixed(2)} {booking.currency} × {nights} {nights === 1 ? t.night : t.nights}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Special Requests */}
-            {booking.notes && (
-              <div className="border-2 border-purple-200 rounded-xl p-5 bg-gradient-to-br from-purple-50 to-white">
-                <div className={`flex items-center gap-2 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <FileText size={20} className="text-purple-600" />
-                  <h3 className="font-bold text-gray-900">{t.specialRequests}</h3>
-                </div>
-                <p className="text-gray-700 italic">{booking.notes}</p>
-              </div>
-            )}
           </div>
-        </div>
+        </Card>
 
-        {/* Action Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <button
-            onClick={() => navigate('/')}
-            className={`bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-300 px-6 py-4 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}
-          >
-            <Home size={20} />
-            {t.backHome}
+        {/* ── Contact + total ── */}
+        <Card>
+          <CardHeader icon={Mail} title={language === 'fr' ? 'Contact & Montant' : language === 'ar' ? 'التواصل والمبلغ' : 'Contact & Amount'} />
+          <div className="p-5 space-y-3">
+            {booking.isGuest && booking.guestInfo?.name && (
+              <Row label={language === 'fr' ? 'Nom' : language === 'ar' ? 'الاسم' : 'Name'} value={booking.guestInfo.name} />
+            )}
+            {booking.contactEmail && (
+              <Row label="Email" value={booking.contactEmail} />
+            )}
+            {booking.contactPhone && (
+              <Row label={language === 'fr' ? 'Téléphone' : language === 'ar' ? 'الهاتف' : 'Phone'} value={booking.contactPhone} />
+            )}
+            <div className={`flex items-center justify-between pt-3 mt-2 border-t border-gray-100 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <p className="text-xs text-gray-400">{language === 'fr' ? 'Montant total' : language === 'ar' ? 'المبلغ الإجمالي' : 'Total amount'}</p>
+              <p className="text-xl font-bold text-primary-700" dir="ltr">
+                {parseFloat(booking.totalPrice).toFixed(2)} <span className="text-sm font-medium text-gray-400">{currency}</span>
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        {/* ── Notes ── */}
+        {booking.notes && (
+          <Card>
+            <CardHeader icon={FileText} title={language === 'fr' ? 'Demandes spéciales' : language === 'ar' ? 'طلبات خاصة' : 'Special Requests'} />
+            <div className="px-5 py-4">
+              <p className="text-sm text-gray-600 italic">{booking.notes}</p>
+            </div>
+          </Card>
+        )}
+
+        {/* ── Actions ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-4">
+          <button onClick={() => navigate('/')}
+            className="flex items-center justify-center gap-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 px-4 py-3 rounded-xl text-sm font-medium transition-colors">
+            <Home size={15} /> {language === 'fr' ? 'Accueil' : language === 'ar' ? 'الرئيسية' : 'Home'}
           </button>
 
           {isGuest ? (
-            <button
-              onClick={() => navigate('/guest-booking-lookup')}
-              className={`bg-primary-600 hover:bg-primary-700 text-white px-6 py-4 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}
-            >
-              <ExternalLink size={20} />
-              {t.trackBooking}
+            <button onClick={() => navigate('/guest-booking-lookup')}
+              className="flex items-center justify-center gap-2 bg-primary-700 hover:bg-primary-800 text-white px-4 py-3 rounded-xl text-sm font-medium transition-colors">
+              <ArrowRight size={15} /> {language === 'fr' ? 'Suivre la réservation' : language === 'ar' ? 'تتبع الحجز' : 'Track booking'}
             </button>
           ) : (
-            <button
-              onClick={() => navigate('/my-bookings')}
-              className={`bg-primary-600 hover:bg-primary-700 text-white px-6 py-4 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}
-            >
-              <FileText size={20} />
-              {t.viewBookings}
+            <button onClick={() => navigate('/my-bookings')}
+              className="flex items-center justify-center gap-2 bg-primary-700 hover:bg-primary-800 text-white px-4 py-3 rounded-xl text-sm font-medium transition-colors">
+              <FileText size={15} /> {language === 'fr' ? 'Mes réservations' : language === 'ar' ? 'حجوزاتي' : 'My bookings'}
             </button>
           )}
 
-          <button
-            onClick={() => window.print()}
-            className={`bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 sm:col-span-2 lg:col-span-1 ${isRTL ? 'flex-row-reverse' : ''}`}
-          >
-            <FileText size={20} />
-            {language === 'fr' ? 'Imprimer' : language === 'ar' ? 'طباعة' : 'Print'}
+          <button onClick={() => window.print()}
+            className="flex items-center justify-center gap-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 px-4 py-3 rounded-xl text-sm font-medium transition-colors">
+            <FileText size={15} /> {language === 'fr' ? 'Imprimer' : language === 'ar' ? 'طباعة' : 'Print'}
           </button>
         </div>
+
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import wafacashLogo from '../assets/images/wafacash.png';
 import {
   ArrowLeft, User, Mail, Phone, CreditCard, Building2, CheckCircle2,
   Calendar, Home, Loader2, MapPin, Star, Info,
@@ -657,12 +658,8 @@ const HotelBooking = () => {
                     return (
                       <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${active ? 'border-orange-500 bg-orange-50' : 'border-gray-200 bg-white hover:border-orange-200'} ${isRTL ? 'flex-row-reverse' : ''}`}>
                         <input type="radio" name="payment" value="wafacash" checked={active} onChange={() => setPaymentMethod('wafacash')} className="sr-only" />
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 overflow-hidden ${active ? 'bg-orange-500' : 'bg-orange-50'}`}>
-                          {/* Wafacash logo */}
-                          <svg viewBox="0 0 40 40" width="28" height="28" xmlns="http://www.w3.org/2000/svg">
-                            <rect width="40" height="40" rx="6" fill={active ? '#EA6913' : '#EA6913'} />
-                            <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">WC</text>
-                          </svg>
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 overflow-hidden bg-white border border-gray-100`}>
+                          <img src={wafacashLogo} alt="Wafacash" className="w-full h-full object-contain p-0.5" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>

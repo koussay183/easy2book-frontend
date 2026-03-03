@@ -58,9 +58,14 @@ export const API_ENDPOINTS = {
   BOOKINGS_ADMIN_DELETE: `${API_BASE_URL}/api/bookings`, // DELETE /:id - Delete booking
   
   // Admin endpoints
-  ADMIN_STATS: `${API_BASE_URL}/api/admin/stats`,
-  ADMIN_USERS: `${API_BASE_URL}/api/admin/users`,
-  ADMIN_LOGINS: `${API_BASE_URL}/api/admin/logins`,
+  ADMIN_STATS:            `${API_BASE_URL}/api/admin/stats`,
+  ADMIN_USERS:            `${API_BASE_URL}/api/admin/users`,
+  ADMIN_LOGINS:           `${API_BASE_URL}/api/admin/logins`,
+  ADMIN_SETTINGS:         `${API_BASE_URL}/api/admin/settings`,
+  ADMIN_ACCOUNTING:       `${API_BASE_URL}/api/admin/accounting/summary`,
+
+  // Public settings (RIBs for confirmation page)
+  PUBLIC_SETTINGS:        `${API_BASE_URL}/api/settings`,
   
   // Payment endpoints
   PAYMENT_INITIATE: `${API_BASE_URL}/api/payments/initiate`,

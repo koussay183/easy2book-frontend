@@ -137,6 +137,21 @@ const Landing = () => {
     </div>
   );
 
+  const isPageLoading = loadingHotels || loadingOmra;
+
+  if (isPageLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
+        <div className="w-16 h-16 bg-primary-50 rounded-2xl flex items-center justify-center">
+          <Loader2 size={32} className="text-primary-600 animate-spin" />
+        </div>
+        <p className="text-sm font-medium text-gray-500">
+          {language === 'fr' ? 'Chargement en cours…' : language === 'ar' ? 'جاري التحميل…' : 'Loading…'}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
 
