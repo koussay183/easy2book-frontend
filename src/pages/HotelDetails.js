@@ -8,7 +8,7 @@ import {
   Waves, Coffee, Wind, Dumbbell, Droplets, Users, Palmtree, Baby,
   Heart, TreePine, PartyPopper, Briefcase, Home, ChevronDown, ChevronUp,
   Calendar, Check, X, Info, DollarSign, Loader2, AlertCircle, Navigation,
-  Clock, Shield, Award, Image as ImageIcon, ChevronRight, CheckCircle2,
+  Shield, Award, Image as ImageIcon, ChevronRight, CheckCircle2,
   MessageSquare, ThumbsUp
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -357,12 +357,6 @@ const HotelDetails = () => {
     if (name.includes('tourisme') || name.includes('tourism') || name.includes('découverte')) return <Navigation size={18} />;
     if (name.includes('nature') || name.includes('montagne') || name.includes('mountain')) return <TreePine size={18} />;
     return <Star size={18} />;
-  };
-
-  const renderStars = (count) => {
-    return Array.from({ length: count || 0 }, (_, i) => (
-      <Star key={i} size={20} className="fill-yellow-400 text-yellow-400" />
-    ));
   };
 
   // Validation functions

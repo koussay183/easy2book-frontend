@@ -3,7 +3,6 @@ import { MapPin, Star, ChevronRight, Utensils, ThumbsUp, Clock, BadgePercent, Fl
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import useTripAdvisor from '../../hooks/useTripAdvisor';
-import tripadvisorLogo from '../../assets/images/tripadvasor_logo.png';
 
 /* ── Number formatter ─────────────────────────────────────────────────── */
 const fmt = (v) =>
