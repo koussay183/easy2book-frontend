@@ -63,6 +63,7 @@ export const API_ENDPOINTS = {
   ADMIN_LOGINS:           `${API_BASE_URL}/api/admin/logins`,
   ADMIN_SETTINGS:         `${API_BASE_URL}/api/admin/settings`,
   ADMIN_ACCOUNTING:       `${API_BASE_URL}/api/admin/accounting/summary`,
+  ADMIN_ACCOUNTING_MONTHLY: `${API_BASE_URL}/api/admin/accounting/monthly`,
 
   // Public settings (RIBs for confirmation page)
   PUBLIC_SETTINGS:        `${API_BASE_URL}/api/settings`,
