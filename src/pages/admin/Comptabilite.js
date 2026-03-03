@@ -4,7 +4,7 @@ import {
   DollarSign, Clock, CheckCircle2, AlertCircle,
   Banknote, ChevronDown, ChevronUp,
   BarChart3, Receipt, Search, Download, Printer,
-  XCircle, Check
+  XCircle, Check, FileText
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../config/api';
 
@@ -241,6 +241,7 @@ const Comptabilite = () => {
   const [monthlyData,  setMonthlyData]  = useState([]);
   const [markingPaid,  setMarkingPaid]  = useState(null);
   const [filter,       setFilter]       = useState({ method: 'all', status: 'all', search: '' });
+  const [invoiceFilter, setInvoiceFilter] = useState({ method: 'all', status: 'all', search: '' });
 
   /* ── local draft state ── */
   const [wafacash, setWafacash] = useState({ rib:'', accountName:'', bankName:'', phone:'', instructions:'' });
@@ -281,7 +282,7 @@ const Comptabilite = () => {
         headers: { Authorization: `Bearer ${token()}` },
       });
       const data = await res.json();
-      const list = data.data || data.bookings || [];
+      const list = data.data?.bookings || [];
       setTransactions(Array.isArray(list) ? list : []);
     } catch { /* silent */ } finally { setLoadingTx(false); }
   }, []);
@@ -302,6 +303,8 @@ const Comptabilite = () => {
       loadSummary();
       loadTransactions();
       loadMonthly();
+    } else if (activeTab === 'invoices') {
+      loadTransactions();
     }
   }, [activeTab, loadSummary, loadTransactions, loadMonthly]);
 
@@ -367,6 +370,21 @@ const Comptabilite = () => {
 
   const isFiltered = filter.method !== 'all' || filter.status !== 'all' || filter.search !== '';
 
+  /* ── filtered invoices (dedicated tab) ── */
+  const filteredInvoices = useMemo(() => transactions.filter(b => {
+    if (invoiceFilter.method !== 'all' && b.paymentMethod !== invoiceFilter.method) return false;
+    if (invoiceFilter.status !== 'all' && b.paymentStatus !== invoiceFilter.status) return false;
+    if (invoiceFilter.search) {
+      const q = invoiceFilter.search.toLowerCase();
+      if (!b.confirmationCode?.toLowerCase().includes(q) && !b.contactEmail?.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }), [transactions, invoiceFilter]);
+
+  const invoicePaidCount    = transactions.filter(b => b.paymentStatus === 'paid').length;
+  const invoicePendingCount = transactions.filter(b => b.paymentStatus === 'pending').length;
+  const isInvoiceFiltered   = invoiceFilter.method !== 'all' || invoiceFilter.status !== 'all' || invoiceFilter.search !== '';
+
   return (
     <div className="space-y-5 max-w-5xl mx-auto">
 
@@ -384,6 +402,10 @@ const Comptabilite = () => {
           <button onClick={() => setActiveTab('finance')}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeTab === 'finance' ? 'bg-primary-700 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'}`}>
             <span className="flex items-center gap-1.5"><BarChart3 size={14} /> Finance</span>
+          </button>
+          <button onClick={() => setActiveTab('invoices')}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeTab === 'invoices' ? 'bg-primary-700 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'}`}>
+            <span className="flex items-center gap-1.5"><FileText size={14} /> Factures</span>
           </button>
         </div>
       </div>
@@ -725,6 +747,172 @@ const Comptabilite = () => {
           )}
         </div>
       )}
+
+      {/* ──────────── INVOICES TAB ──────────── */}
+      {activeTab === 'invoices' && (
+        <div className="space-y-4">
+
+          {/* Summary pills */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Total factures', value: transactions.length,    color: 'bg-primary-50 text-primary-700 border-primary-200', icon: FileText },
+              { label: 'Payées',         value: invoicePaidCount,        color: 'bg-green-50 text-green-700 border-green-200',       icon: CheckCircle2 },
+              { label: 'En attente',     value: invoicePendingCount,     color: 'bg-yellow-50 text-yellow-700 border-yellow-200',    icon: Clock },
+            ].map(({ label, value, color, icon: Ic }) => (
+              <div key={label} className={`rounded-2xl border px-5 py-4 flex items-center gap-3 ${color}`}>
+                <Ic size={18} className="flex-shrink-0 opacity-70" />
+                <div>
+                  <p className="text-2xl font-bold leading-none">{value}</p>
+                  <p className="text-xs font-medium opacity-70 mt-1">{label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Invoice table card */}
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+
+            {/* Toolbar */}
+            <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center gap-3">
+              <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2 flex-1 min-w-0">
+                <FileText size={14} className="text-primary-600 flex-shrink-0" />
+                Gestionnaire de factures
+                <span className="text-xs font-normal text-gray-400 ml-1">{filteredInvoices.length} / {transactions.length}</span>
+              </h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative">
+                  <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input type="text" placeholder="Code ou email…" value={invoiceFilter.search}
+                    onChange={e => setInvoiceFilter(f => ({ ...f, search: e.target.value }))}
+                    className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg outline-none focus:border-primary-400 w-36"
+                  />
+                </div>
+                <select value={invoiceFilter.method}
+                  onChange={e => setInvoiceFilter(f => ({ ...f, method: e.target.value }))}
+                  className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary-400 bg-white">
+                  <option value="all">Toutes méthodes</option>
+                  {Object.entries(methodLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+                <select value={invoiceFilter.status}
+                  onChange={e => setInvoiceFilter(f => ({ ...f, status: e.target.value }))}
+                  className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary-400 bg-white">
+                  <option value="all">Tous statuts</option>
+                  <option value="pending">En attente</option>
+                  <option value="paid">Payé</option>
+                  <option value="failed">Échoué</option>
+                  <option value="refunded">Remboursé</option>
+                </select>
+                {isInvoiceFiltered && (
+                  <button onClick={() => setInvoiceFilter({ method: 'all', status: 'all', search: '' })}
+                    className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors">
+                    <XCircle size={13} /> Effacer
+                  </button>
+                )}
+                <button onClick={loadTransactions}
+                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-2.5 py-1.5 hover:border-gray-300 transition-colors">
+                  <RefreshCw size={12} className={loadingTx ? 'animate-spin' : ''} /> Sync
+                </button>
+                {filteredInvoices.filter(b => b.paymentStatus === 'paid').length > 0 && (
+                  <button
+                    onClick={() => filteredInvoices.filter(b => b.paymentStatus === 'paid').forEach(b => generateFacture(b))}
+                    className="flex items-center gap-1.5 text-xs bg-primary-700 hover:bg-primary-800 text-white rounded-lg px-2.5 py-1.5 transition-colors font-medium">
+                    <Printer size={12} /> Tout imprimer ({filteredInvoices.filter(b => b.paymentStatus === 'paid').length})
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              {loadingTx ? (
+                <div className="flex items-center justify-center py-12 text-gray-400 gap-2 text-sm">
+                  <RefreshCw size={16} className="animate-spin" /> Chargement des factures...
+                </div>
+              ) : filteredInvoices.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-14 text-gray-400">
+                  <FileText size={30} className="mb-2 opacity-20" />
+                  <p className="text-sm font-medium">Aucune facture{isInvoiceFiltered ? ' correspondant aux filtres' : ''}.</p>
+                  {isInvoiceFiltered && (
+                    <button onClick={() => setInvoiceFilter({ method: 'all', status: 'all', search: '' })}
+                      className="mt-3 text-xs text-primary-600 hover:underline">Effacer les filtres</button>
+                  )}
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-[11px] text-gray-400 uppercase tracking-wide">
+                    <tr>
+                      <th className="px-5 py-3 text-left font-medium">N° Facture</th>
+                      <th className="px-4 py-3 text-left font-medium">Client</th>
+                      <th className="px-4 py-3 text-left font-medium">Méthode</th>
+                      <th className="px-4 py-3 text-left font-medium">Paiement</th>
+                      <th className="px-4 py-3 text-left font-medium">Statut rés.</th>
+                      <th className="px-4 py-3 text-right font-medium">Montant</th>
+                      <th className="px-5 py-3 text-left font-medium">Date</th>
+                      <th className="px-4 py-3 text-center font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filteredInvoices.map((b, idx) => (
+                      <tr key={b._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-3">
+                          <span className="font-mono text-xs font-bold text-primary-700 tracking-wide">
+                            FAC-{b.confirmationCode || String(idx + 1).padStart(4, '0')}
+                          </span>
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            {b.paymentPlan === 'installment' ? 'En tranches' : 'Intégral'}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-xs font-medium text-gray-800 truncate max-w-[140px]">{b.contactEmail || '—'}</p>
+                          {b.contactPhone && <p className="text-[10px] text-gray-400" dir="ltr">{b.contactPhone}</p>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border ${methodColor[b.paymentMethod] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                            {methodLabel[b.paymentMethod] || b.paymentMethod || '—'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border ${statusColor[b.paymentStatus] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                            {b.paymentStatus || '—'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs font-medium ${bookingStatusColor[b.status] || 'text-gray-500'}`}>{b.status || '—'}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-gray-900 tabular-nums" dir="ltr">
+                          {fmtMoney(b.totalPrice)}<span className="text-[10px] font-normal text-gray-400 ml-1">{b.currency || 'TND'}</span>
+                        </td>
+                        <td className="px-5 py-3 text-xs text-gray-400 whitespace-nowrap">{fmtDate(b.createdAt)}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {b.paymentStatus !== 'paid' && (
+                              <button onClick={() => markPaid(b._id)} disabled={markingPaid === b._id}
+                                title="Marquer comme payé"
+                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors disabled:opacity-50">
+                                {markingPaid === b._id ? <RefreshCw size={11} className="animate-spin" /> : <Check size={12} />}
+                              </button>
+                            )}
+                            {b.paymentStatus === 'paid' && (
+                              <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-500" title="Payé">
+                                <CheckCircle2 size={12} />
+                              </div>
+                            )}
+                            <button onClick={() => generateFacture(b)} title="Générer & imprimer la facture"
+                              className="flex items-center gap-1 px-2.5 h-7 rounded-lg bg-primary-50 hover:bg-primary-100 text-primary-700 transition-colors text-[11px] font-semibold">
+                              <Printer size={11} /> Facture
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
