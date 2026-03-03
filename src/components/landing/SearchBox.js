@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import GuestSelector from './GuestSelector';
 import { useLanguage } from '../../context/LanguageContext';
 import { translations } from '../../locales/translations';
+import { API_ENDPOINTS } from '../../config/api';
 
 // City data
 const cities = [
@@ -65,8 +66,11 @@ const SearchBox = ({
   // Destination state and suggestions
   const [destination, setDestination] = useState('');
   const [selectedCity, setSelectedCity] = useState(null);
+  const [selectedHotel, setSelectedHotel] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredCities, setFilteredCities] = useState([]);
+  const [filteredHotels, setFilteredHotels] = useState([]);
+  const [hotelsList, setHotelsList] = useState([]);
   const destinationRef = useRef(null);
 
   // Date states
@@ -76,19 +80,38 @@ const SearchBox = ({
   // Omra category state
   const [selectedOmraCategory, setSelectedOmraCategory] = useState('');
 
-  // Filter cities based on input
+  // Fetch hotels list once on mount (served from cache — fast)
   useEffect(() => {
-    if (destination.trim().length > 0) {
-      const filtered = cities.filter(city => 
-        city.name.toLowerCase().includes(destination.toLowerCase()) ||
-        city.region.toLowerCase().includes(destination.toLowerCase())
+    fetch(API_ENDPOINTS.MYGO_HOTELS)
+      .then(r => r.json())
+      .then(json => {
+        const list = json?.data?.ListHotel;
+        if (Array.isArray(list)) {
+          setHotelsList(list.map(h => ({ Id: h.Id, Name: h.Name, City: h.City })));
+        }
+      })
+      .catch(() => { /* silently ignore — cities still work */ });
+  }, []);
+
+  // Filter cities AND hotels based on input
+  useEffect(() => {
+    const query = destination.trim().toLowerCase();
+    if (query.length > 0) {
+      const fc = cities.filter(city =>
+        city.name.toLowerCase().includes(query) ||
+        city.region.toLowerCase().includes(query)
       );
-      setFilteredCities(filtered);
+      setFilteredCities(fc);
+
+      const fh = hotelsList
+        .filter(h => h.Name?.toLowerCase().includes(query))
+        .slice(0, 10);
+      setFilteredHotels(fh);
     } else {
-      // Show all cities when input is empty
       setFilteredCities(cities);
+      setFilteredHotels([]);
     }
-  }, [destination]);
+  }, [destination, hotelsList]);
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -104,11 +127,19 @@ const SearchBox = ({
   const handleCitySelect = (city) => {
     setDestination(city.name);
     setSelectedCity(city);
+    setSelectedHotel(null);
     setShowSuggestions(false);
   };
-  
+
+  const handleHotelSelect = (hotel) => {
+    setDestination(hotel.Name);
+    setSelectedHotel(hotel);
+    setSelectedCity(null);
+    setShowSuggestions(false);
+  };
+
   const handleSearch = () => {
-    if (!selectedCity) {
+    if (!selectedCity && !selectedHotel) {
       alert(language === 'fr' ? 'Veuillez sélectionner une destination' : language === 'ar' ? 'الرجاء اختيار وجهة' : 'Please select a destination');
       return;
     }
@@ -116,6 +147,18 @@ const SearchBox = ({
       alert(language === 'fr' ? 'Veuillez sélectionner les dates' : language === 'ar' ? 'الرجاء اختيار التواريخ' : 'Please select dates');
       return;
     }
+
+    if (selectedHotel) {
+      const searchParams = new URLSearchParams({
+        checkIn: checkInDate,
+        checkOut: checkOutDate,
+        rooms: rooms,
+        roomsConfig: JSON.stringify(roomsConfig)
+      });
+      navigate(`/hotel/${selectedHotel.Id}?${searchParams.toString()}`);
+      return;
+    }
+
     const searchParams = new URLSearchParams({
       cityId: selectedCity.id,
       cityName: selectedCity.name,
@@ -196,21 +239,57 @@ const SearchBox = ({
                   />
                   
                   {/* Suggestions Dropdown */}
-                  {showSuggestions && filteredCities.length > 0 && (
-                    <div className="absolute z-50 w-full mt-2 bg-white border border-gray-300 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                      {filteredCities.map((city) => (
-                        <button
-                          key={city.id}
-                          type="button"
-                          onClick={() => handleCitySelect(city)}
-                          className={`w-full ${isRTL ? 'text-right pr-4 pl-4' : 'text-left pl-4 pr-4'} py-3 hover:bg-primary-50 transition-colors border-b border-gray-100 last:border-b-0 flex flex-col gap-1`}
-                        >
-                          <span className="font-medium text-gray-900 text-sm">{city.name}</span>
-                          <span className="text-xs text-gray-500">
-                            {city.region && city.region !== '' ? `${city.region}, ` : ''}{city.country}
-                          </span>
-                        </button>
-                      ))}
+                  {showSuggestions && (filteredCities.length > 0 || filteredHotels.length > 0) && (
+                    <div className="absolute z-50 w-full mt-2 bg-white border border-gray-300 rounded-xl shadow-lg max-h-72 overflow-y-auto">
+                      {/* Cities section */}
+                      {filteredCities.length > 0 && (
+                        <>
+                          <div className={`px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2 sticky top-0`}>
+                            <MapPin size={13} className="text-gray-400" />
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                              {language === 'fr' ? 'Villes' : language === 'ar' ? 'المدن' : 'Cities'}
+                            </span>
+                          </div>
+                          {filteredCities.map((city) => (
+                            <button
+                              key={city.id}
+                              type="button"
+                              onClick={() => handleCitySelect(city)}
+                              className={`w-full ${isRTL ? 'text-right pr-4 pl-4' : 'text-left pl-4 pr-4'} py-3 hover:bg-primary-50 transition-colors border-b border-gray-100 last:border-b-0 flex flex-col gap-1`}
+                            >
+                              <span className="font-medium text-gray-900 text-sm">{city.name}</span>
+                              <span className="text-xs text-gray-500">
+                                {city.region && city.region !== '' ? `${city.region}, ` : ''}{city.country}
+                              </span>
+                            </button>
+                          ))}
+                        </>
+                      )}
+
+                      {/* Hotels section */}
+                      {filteredHotels.length > 0 && (
+                        <>
+                          <div className={`px-4 py-2 bg-gray-50 border-b border-gray-200 border-t border-t-gray-200 flex items-center gap-2 sticky top-0`}>
+                            <Hotel size={13} className="text-gray-400" />
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                              {language === 'fr' ? 'Hôtels' : language === 'ar' ? 'الفنادق' : 'Hotels'}
+                            </span>
+                          </div>
+                          {filteredHotels.map((hotel) => (
+                            <button
+                              key={hotel.Id}
+                              type="button"
+                              onClick={() => handleHotelSelect(hotel)}
+                              className={`w-full ${isRTL ? 'text-right pr-4 pl-4' : 'text-left pl-4 pr-4'} py-3 hover:bg-primary-50 transition-colors border-b border-gray-100 last:border-b-0 flex flex-col gap-1`}
+                            >
+                              <span className="font-medium text-gray-900 text-sm">{hotel.Name}</span>
+                              {hotel.City?.Name && (
+                                <span className="text-xs text-gray-500">{hotel.City.Name}</span>
+                              )}
+                            </button>
+                          ))}
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
