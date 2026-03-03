@@ -58,6 +58,7 @@ const HotelBooking = () => {
   const [contactInfo,       setContactInfo]       = useState({ email: '', phone: '' });
   const [guestBookingInfo,  setGuestBookingInfo]  = useState({ name: '', email: '', phone: '', country: '', address: '' });
   const [paymentMethod,     setPaymentMethod]     = useState('agency');
+  const [paymentPlan,       setPaymentPlan]       = useState('full'); // 'full' | 'installment' (online only)
   const [notes,             setNotes]             = useState('');
   const [showMobileSummary, setShowMobileSummary] = useState(false);
   const [errors,            setErrors]            = useState({});
@@ -183,6 +184,7 @@ const HotelBooking = () => {
           }]
         },
         paymentMethod,
+        ...(paymentMethod === 'online' && { paymentPlan }),
         totalPrice: parseFloat(totalPrice),
         notes,
       };
@@ -624,43 +626,146 @@ const HotelBooking = () => {
                 subtitle={language === 'fr' ? 'Choisissez comment vous souhaitez payer' : language === 'ar' ? 'اختر كيف تريد الدفع' : 'Choose how you would like to pay'}
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {[
-                    {
-                      value: 'agency',
-                      icon:  Building2,
-                      label: language === 'fr' ? "Payer à l'agence"    : language === 'ar' ? 'الدفع بالوكالة'          : 'Pay at Agency',
-                      desc:  language === 'fr' ? 'Payez lors de votre visite' : language === 'ar' ? 'ادفع عند زيارة الوكالة' : 'Pay when you visit the agency',
-                    },
-                    {
-                      value: 'online',
-                      icon:  CreditCard,
-                      label: language === 'fr' ? 'Paiement en ligne'    : language === 'ar' ? 'الدفع عبر الإنترنت'     : 'Online Payment',
-                      desc:  language === 'fr' ? 'Paiement sécurisé par carte' : language === 'ar' ? 'دفع آمن ببطاقة بنكية' : 'Secure credit card payment',
-                    },
-                  ].map(({ value, icon: Ic, label, desc }) => {
-                    const active = paymentMethod === value;
+
+                  {/* Easy2Book Agency */}
+                  {(() => {
+                    const active = paymentMethod === 'agency';
                     return (
-                      <label
-                        key={value}
-                        className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
-                          active ? 'border-primary-600 bg-primary-50' : 'border-gray-200 bg-white hover:border-gray-300'
-                        } ${isRTL ? 'flex-row-reverse' : ''}`}
-                      >
-                        <input type="radio" name="payment" value={value} checked={active} onChange={() => setPaymentMethod(value)} className="sr-only" />
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${active ? 'bg-primary-700' : 'bg-gray-100'}`}>
-                          <Ic size={16} className={active ? 'text-white' : 'text-gray-500'} />
+                      <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${active ? 'border-primary-600 bg-primary-50' : 'border-gray-200 bg-white hover:border-gray-300'} ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <input type="radio" name="payment" value="agency" checked={active} onChange={() => setPaymentMethod('agency')} className="sr-only" />
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${active ? 'bg-primary-700' : 'bg-primary-50'}`}>
+                          <Building2 size={18} className={active ? 'text-white' : 'text-primary-600'} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                            <p className="text-sm font-semibold text-gray-900">{label}</p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {language === 'fr' ? 'Agence Easy2Book' : language === 'ar' ? 'وكالة Easy2Book' : 'Easy2Book Agency'}
+                            </p>
                             {active && <CheckCircle2 size={14} className="text-primary-600 flex-shrink-0" />}
                           </div>
-                          <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {language === 'fr' ? 'Payez dans notre agence la plus proche' : language === 'ar' ? 'ادفع في أقرب وكالة Easy2Book' : 'Pay at your nearest Easy2Book branch'}
+                          </p>
                         </div>
                       </label>
                     );
-                  })}
+                  })()}
+
+                  {/* Wafacash */}
+                  {(() => {
+                    const active = paymentMethod === 'wafacash';
+                    return (
+                      <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${active ? 'border-orange-500 bg-orange-50' : 'border-gray-200 bg-white hover:border-orange-200'} ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <input type="radio" name="payment" value="wafacash" checked={active} onChange={() => setPaymentMethod('wafacash')} className="sr-only" />
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 overflow-hidden ${active ? 'bg-orange-500' : 'bg-orange-50'}`}>
+                          {/* Wafacash logo */}
+                          <svg viewBox="0 0 40 40" width="28" height="28" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="40" height="40" rx="6" fill={active ? '#EA6913' : '#EA6913'} />
+                            <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Arial,sans-serif">WC</text>
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            <p className="text-sm font-semibold text-gray-900">Wafacash</p>
+                            {active && <CheckCircle2 size={14} className="text-orange-500 flex-shrink-0" />}
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {language === 'fr' ? 'Paiement en espèces chez un point Wafacash' : language === 'ar' ? 'الدفع نقداً في نقطة Wafacash' : 'Cash payment at any Wafacash point'}
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })()}
+
+                  {/* Izi */}
+                  {(() => {
+                    const active = paymentMethod === 'izi';
+                    return (
+                      <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${active ? 'border-violet-500 bg-violet-50' : 'border-gray-200 bg-white hover:border-violet-200'} ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <input type="radio" name="payment" value="izi" checked={active} onChange={() => setPaymentMethod('izi')} className="sr-only" />
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 overflow-hidden`}>
+                          {/* Izi logo */}
+                          <svg viewBox="0 0 40 40" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="40" height="40" rx="6" fill="#6D28D9" />
+                            <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" fontFamily="Arial,sans-serif">izi</text>
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            <p className="text-sm font-semibold text-gray-900">Izi</p>
+                            {active && <CheckCircle2 size={14} className="text-violet-500 flex-shrink-0" />}
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {language === 'fr' ? 'Paiement en espèces chez un point Izi' : language === 'ar' ? 'الدفع نقداً في نقطة Izi' : 'Cash payment at any Izi point'}
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })()}
+
+                  {/* Online Payment */}
+                  {(() => {
+                    const active = paymentMethod === 'online';
+                    return (
+                      <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${active ? 'border-primary-600 bg-primary-50' : 'border-gray-200 bg-white hover:border-gray-300'} ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <input type="radio" name="payment" value="online" checked={active} onChange={() => setPaymentMethod('online')} className="sr-only" />
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${active ? 'bg-primary-700' : 'bg-gray-100'}`}>
+                          <CreditCard size={18} className={active ? 'text-white' : 'text-gray-500'} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {language === 'fr' ? 'Paiement en ligne' : language === 'ar' ? 'الدفع عبر الإنترنت' : 'Online Payment'}
+                            </p>
+                            {active && <CheckCircle2 size={14} className="text-primary-600 flex-shrink-0" />}
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {language === 'fr' ? 'Paiement sécurisé par carte bancaire' : language === 'ar' ? 'دفع آمن ببطاقة بنكية' : 'Secure credit/debit card payment'}
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })()}
+
                 </div>
+
+                {/* Online payment plan sub-option */}
+                {paymentMethod === 'online' && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                    <p className="text-xs font-semibold text-blue-800 mb-3">
+                      {language === 'fr' ? 'Comment souhaitez-vous régler ?' : language === 'ar' ? 'كيف تريد الدفع؟' : 'How would you like to pay?'}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentPlan('full')}
+                        className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all text-center ${paymentPlan === 'full' ? 'border-primary-600 bg-white shadow-sm' : 'border-transparent bg-white/60 hover:bg-white'}`}
+                      >
+                        <Shield size={16} className={paymentPlan === 'full' ? 'text-primary-600' : 'text-gray-400'} />
+                        <span className={`text-xs font-bold ${paymentPlan === 'full' ? 'text-primary-700' : 'text-gray-600'}`}>
+                          {language === 'fr' ? 'Paiement total' : language === 'ar' ? 'الدفع الكامل' : 'Full Payment'}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {language === 'fr' ? 'Montant complet' : language === 'ar' ? 'المبلغ كاملاً' : 'Pay full amount'}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentPlan('installment')}
+                        className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all text-center ${paymentPlan === 'installment' ? 'border-primary-600 bg-white shadow-sm' : 'border-transparent bg-white/60 hover:bg-white'}`}
+                      >
+                        <Calendar size={16} className={paymentPlan === 'installment' ? 'text-primary-600' : 'text-gray-400'} />
+                        <span className={`text-xs font-bold ${paymentPlan === 'installment' ? 'text-primary-700' : 'text-gray-600'}`}>
+                          {language === 'fr' ? 'En tranches' : language === 'ar' ? 'على أقساط' : 'Installments'}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {language === 'fr' ? 'Paiement échelonné' : language === 'ar' ? 'دفع مقسّط' : 'Split the payment'}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
               </Section>
 
               {/* ─── 4. Special Requests ─── */}
@@ -745,8 +850,16 @@ const HotelBooking = () => {
                     {paymentMethod === 'online' ? <Shield size={16} /> : <CheckCircle2 size={16} />}
                     <span>
                       {paymentMethod === 'online'
-                        ? (language === 'fr' ? 'Payer en ligne' : language === 'ar' ? 'ادفع الآن' : 'Pay Online Now')
-                        : (language === 'fr' ? 'Confirmer la réservation' : language === 'ar' ? 'تأكيد الحجز' : 'Confirm Booking')
+                        ? (language === 'fr'
+                            ? `Payer en ligne${paymentPlan === 'installment' ? ' (tranches)' : ''}`
+                            : language === 'ar'
+                              ? `ادفع الآن${paymentPlan === 'installment' ? ' (أقساط)' : ''}`
+                              : `Pay Online${paymentPlan === 'installment' ? ' (installments)' : ''}`)
+                        : paymentMethod === 'wafacash'
+                          ? (language === 'fr' ? 'Confirmer — payer via Wafacash' : language === 'ar' ? 'تأكيد — الدفع عبر Wafacash' : 'Confirm — Pay via Wafacash')
+                          : paymentMethod === 'izi'
+                            ? (language === 'fr' ? 'Confirmer — payer via Izi' : language === 'ar' ? 'تأكيد — الدفع عبر Izi' : 'Confirm — Pay via Izi')
+                            : (language === 'fr' ? 'Confirmer la réservation' : language === 'ar' ? 'تأكيد الحجز' : 'Confirm Booking')
                       }
                     </span>
                     <span className="font-normal opacity-70">— {totalPrice} {currency}</span>

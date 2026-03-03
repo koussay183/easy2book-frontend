@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Hotel, Mountain, ArrowLeft, ArrowRight, Shield, Clock, Star, MapPin, Zap, TrendingUp, Award, DollarSign, Users, Calendar } from 'lucide-react';
+import { Hotel, Mountain, ArrowLeft, ArrowRight, Shield, Clock, Star, MapPin, Zap, TrendingUp, Award, DollarSign, Users, Calendar, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SearchBox from '../components/landing/SearchBox';
 import HotelCard from '../components/landing/HotelCard';

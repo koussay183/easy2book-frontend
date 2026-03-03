@@ -348,8 +348,12 @@ const BookingsManager = () => {
                           {paymentBadge(booking.paymentStatus)}
                           <div className={`flex items-center gap-1 text-xs text-gray-400 ${isRTL ? 'flex-row-reverse' : ''}`}>
                             {booking.paymentMethod === 'online'
-                              ? <><CreditCard size={10} /><span>En ligne</span></>
-                              : <><Building2 size={10} /><span>Agence</span></>
+                              ? <><CreditCard size={10} /><span>En ligne{booking.paymentPlan === 'installment' ? ' (tranches)' : ''}</span></>
+                              : booking.paymentMethod === 'wafacash'
+                                ? <><span style={{color:'#EA6913',fontWeight:'bold',fontSize:'10px'}}>WC</span><span>Wafacash</span></>
+                                : booking.paymentMethod === 'izi'
+                                  ? <><span style={{color:'#6D28D9',fontWeight:'bold',fontSize:'10px'}}>izi</span><span>Izi</span></>
+                                  : <><Building2 size={10} /><span>Agence</span></>
                             }
                           </div>
                         </div>

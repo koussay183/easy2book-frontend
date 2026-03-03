@@ -302,7 +302,14 @@ const BookingDetail = () => {
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Paiement</p>
                 <div className="mt-1"><Badge cfg={paymentConfig[booking.paymentStatus] || paymentConfig.pending} /></div>
                 <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                  {booking.paymentMethod === 'online' ? <><CreditCard size={10}/> En ligne</> : <><Building2 size={10}/> Agence</>}
+                  {booking.paymentMethod === 'online'
+                    ? <><CreditCard size={10}/> En ligne{booking.paymentPlan === 'installment' ? ' (tranches)' : ''}</>
+                    : booking.paymentMethod === 'wafacash'
+                      ? <><span style={{color:'#EA6913',fontWeight:'bold',fontSize:'10px'}}>WC</span> Wafacash</>
+                      : booking.paymentMethod === 'izi'
+                        ? <><span style={{color:'#6D28D9',fontWeight:'bold',fontSize:'10px'}}>izi</span> Izi</>
+                        : <><Building2 size={10}/> Agence</>
+                  }
                 </p>
               </div>
               <div className="p-4">

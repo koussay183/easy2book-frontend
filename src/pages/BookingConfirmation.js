@@ -107,7 +107,9 @@ const BookingConfirmation = () => {
       ? 'احتفظ برمز التأكيد لتسجيل الوصول'
       : 'Keep your confirmation code for check-in',
     online: language === 'fr' ? 'Paiement en ligne' : language === 'ar' ? 'الدفع عبر الإنترنت' : 'Online Payment',
-    agency: language === 'fr' ? 'Paiement à l\'agence' : language === 'ar' ? 'الدفع في الوكالة' : 'Pay at Agency',
+    agency: language === 'fr' ? 'Paiement à l\'agence Easy2Book' : language === 'ar' ? 'الدفع في وكالة Easy2Book' : 'Pay at Easy2Book Agency',
+    wafacash: 'Wafacash',
+    izi: 'Izi',
     pending: language === 'fr' ? 'En attente' : language === 'ar' ? 'قيد الانتظار' : 'Pending',
     confirmed: language === 'fr' ? 'Confirmé' : language === 'ar' ? 'مؤكد' : 'Confirmed',
     holder: language === 'fr' ? 'Titulaire' : language === 'ar' ? 'صاحب الحجز' : 'Holder',
@@ -125,7 +127,13 @@ const BookingConfirmation = () => {
   const children = room?.Pax?.Child || [];
 
   // Get payment method text
-  const paymentMethodText = paymentMethod === 'online' ? t.online : t.agency;
+  const paymentMethodText = paymentMethod === 'online'
+    ? t.online
+    : paymentMethod === 'wafacash'
+      ? t.wafacash
+      : paymentMethod === 'izi'
+        ? t.izi
+        : t.agency;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-gray-50 py-8 px-4" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -373,7 +381,14 @@ const BookingConfirmation = () => {
                 <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
                   <span className="text-gray-600">{t.paymentMethod}</span>
                   <span className="font-bold text-gray-900 flex items-center gap-2">
-                    {paymentMethod === 'online' ? <CreditCard size={16} /> : <Building2 size={16} />}
+                    {paymentMethod === 'online'
+                      ? <CreditCard size={16} />
+                      : paymentMethod === 'wafacash'
+                        ? <span style={{color:'#EA6913',fontWeight:'bold',fontSize:'12px'}}>WC</span>
+                        : paymentMethod === 'izi'
+                          ? <span style={{color:'#6D28D9',fontWeight:'bold',fontSize:'12px'}}>izi</span>
+                          : <Building2 size={16} />
+                    }
                     {paymentMethodText}
                   </span>
                 </div>
