@@ -33,9 +33,9 @@ const Sidebar = ({ isOpen, onClose }) => {
   const t      = T[language] || T.fr;
   const isRTL  = language === 'ar';
 
-  // RTL: slides from left; LTR: slides from right
-  const panelPos   = isRTL ? 'left-0'  : 'right-0';
-  const slideHide  = isRTL ? '-translate-x-full' : 'translate-x-full';
+  // Always slides from left
+  const panelPos   = 'left-0';
+  const slideHide  = '-translate-x-full';
 
   const handleLogout = async () => {
     await logout();
@@ -104,11 +104,15 @@ const Sidebar = ({ isOpen, onClose }) => {
           <div className="border-t border-gray-100 my-2" />
 
           {isAuthenticated && (
-            <>
-              <NavLink to="/profile"  icon={User}     label={t.profile}   onClick={onClose} isRTL={isRTL} />
-              <NavLink to="/bookings" icon={BookOpen}  label={t.bookings}  onClick={onClose} isRTL={isRTL} />
-            </>
+            <NavLink to="/profile"  icon={User}     label={t.profile}   onClick={onClose} isRTL={isRTL} />
           )}
+          <NavLink
+            to={isAuthenticated ? '/bookings' : '/guest-booking-lookup'}
+            icon={BookOpen}
+            label={t.bookings}
+            onClick={onClose}
+            isRTL={isRTL}
+          />
         </nav>
 
         {/* Footer */}

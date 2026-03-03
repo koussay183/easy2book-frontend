@@ -75,6 +75,7 @@ const Hotels = () => {
   const [filteredHotels, setFilteredHotels] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
   const [showGuestSelector, setShowGuestSelector] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   // Search state - Initialize with URL params
   const [searchCityName, setSearchCityName] = useState(cityName || '');
@@ -96,13 +97,16 @@ const Hotels = () => {
   const [headerCity, setHeaderCity] = useState(null);   // selected city from dropdown
   const [headerResults, setHeaderResults] = useState([]); // [{ city }]
   const [showHeaderDrop, setShowHeaderDrop] = useState(false);
-  const headerDestRef = useRef(null);
+  const headerDestRef        = useRef(null);
+  const mobileDestRef        = useRef(null);
+  const sentinelRef          = useRef(null);
+  const prevFilteredCountRef = useRef(0);
 
   // Build city suggestions for header destination dropdown
   useEffect(() => {
     const q = headerDest.trim().toLowerCase();
     if (q === '') {
-      setHeaderResults(CITIES.slice(0, 12));
+      setHeaderResults(CITIES);
       return;
     }
     setHeaderResults(
@@ -112,22 +116,43 @@ const Hotels = () => {
     );
   }, [headerDest]);
 
-  // Close header dropdown on outside click
+  // Close header dropdown on outside click (checks both desktop & mobile refs)
   useEffect(() => {
     const handler = (e) => {
-      if (headerDestRef.current && !headerDestRef.current.contains(e.target)) {
-        setShowHeaderDrop(false);
-      }
+      const inDesktop = headerDestRef.current?.contains(e.target);
+      const inMobile  = mobileDestRef.current?.contains(e.target);
+      if (!inDesktop && !inMobile) setShowHeaderDrop(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Infinite scroll — trigger loadMoreHotels when sentinel enters viewport
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          loadMoreHotels();
+        }
+      },
+      { rootMargin: '300px' } // start loading 300 px before reaching the end
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loadMoreHotels]);
+
+  // Scroll to first newly loaded hotel after each batch
+  useEffect(() => {
+    prevFilteredCountRef.current = filteredHotels.length;
+  }, [filteredHotels.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Filter state (applied filters)
   const [filters, setFilters] = useState({
     priceRange: [0, 5000],
     starRating: [],
-    sortBy: 'price-low',
+    sortBy: 'recommended',
     facilities: [],
     themes: [],
     boardingTypes: []
@@ -137,7 +162,7 @@ const Hotels = () => {
   const [tempFilters, setTempFilters] = useState({
     priceRange: [0, 5000],
     starRating: [],
-    sortBy: 'price-low',
+    sortBy: 'recommended',
     facilities: [],
     themes: [],
     boardingTypes: []
@@ -373,7 +398,7 @@ const Hotels = () => {
     setTempFilters({
       priceRange: [0, 5000],
       starRating: [],
-      sortBy: 'price-low',
+      sortBy: 'recommended',
       facilities: [],
       themes: [],
       boardingTypes: []
@@ -384,7 +409,7 @@ const Hotels = () => {
     const clearedFilters = {
       priceRange: [0, 5000],
       starRating: [],
-      sortBy: 'price-low',
+      sortBy: 'recommended',
       facilities: [],
       themes: [],
       boardingTypes: []
@@ -418,33 +443,97 @@ const Hotels = () => {
 
       {/* ── Sticky Header ── */}
       <div className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className="max-w-5xl mx-auto px-4 pt-3 pb-4 space-y-3">
+
+          {/* ─ Row 1: Back ← · · · Filters + Count ─ */}
+          <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
 
             {/* Back button */}
             <button
               onClick={() => navigate('/')}
-              className="flex items-center gap-1.5 text-gray-500 hover:text-primary-700 transition-colors flex-shrink-0 group"
+              className="flex items-center gap-2 text-gray-500 hover:text-primary-700 transition-colors group flex-shrink-0"
             >
               <div className="w-8 h-8 rounded-xl bg-gray-100 group-hover:bg-primary-50 flex items-center justify-center transition-colors">
                 <ArrowLeft size={16} className={isRTL ? 'rotate-180' : ''} />
               </div>
-              <span className="text-sm font-medium hidden md:inline text-gray-600 group-hover:text-primary-700">
+              <span className="text-sm font-medium text-gray-600 group-hover:text-primary-700">
                 {language === 'fr' ? 'Retour' : language === 'ar' ? 'رجوع' : 'Back'}
               </span>
             </button>
 
-            {/* ── Unified Search Bar ── */}
-            <div className={`flex-1 flex items-stretch bg-white border-2 border-gray-200 rounded-2xl overflow-visible hover:border-primary-300 focus-within:border-primary-500 transition-colors shadow-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
+            {/* City summary (desktop only) */}
+            {cityName && (
+              <div className="hidden md:flex items-center gap-1.5 text-gray-600">
+                <MapPin size={13} className="text-primary-500" />
+                <span className="text-sm font-bold text-gray-800">{cityName}</span>
+                {searchCheckIn && searchCheckOut && (
+                  <>
+                    <span className="text-gray-300 mx-0.5">·</span>
+                    <span className="text-xs text-gray-400">{searchCheckIn} → {searchCheckOut}</span>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Mobile: tappable search summary chip — opens the search bottom sheet */}
+            <button
+              onClick={() => setShowSearchModal(true)}
+              className="flex md:hidden flex-1 mx-2 items-center gap-2 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-xl px-3 py-2 min-w-0 transition-colors"
+            >
+              <Search size={13} className="text-primary-500 flex-shrink-0" />
+              <span className="text-sm font-medium text-gray-700 truncate">
+                {cityName || (language === 'fr' ? 'Destination' : language === 'ar' ? 'الوجهة' : 'Destination')}
+                {searchCheckIn ? ` · ${searchCheckIn}` : ''}
+              </span>
+            </button>
+
+            {/* Filters + count + loading */}
+            <div className={`flex items-center gap-2 flex-shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <button
+                onClick={openFilterModal}
+                className={`relative flex items-center gap-1.5 border-2 rounded-xl py-2 px-3 font-semibold text-sm transition-colors ${
+                  (filters.starRating.length > 0 || filters.boardingTypes.length > 0 || filters.themes.length > 0 || filters.priceRange[1] < 5000)
+                    ? 'bg-primary-50 border-primary-300 text-primary-700'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                <SlidersHorizontal size={15} />
+                <span className="hidden sm:inline">
+                  {language === 'fr' ? 'Filtres' : language === 'ar' ? 'فلاتر' : 'Filters'}
+                </span>
+                {(filters.starRating.length + filters.boardingTypes.length + filters.themes.length + (filters.priceRange[1] < 5000 ? 1 : 0)) > 0 && (
+                  <span className="bg-primary-700 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {filters.starRating.length + filters.boardingTypes.length + filters.themes.length + (filters.priceRange[1] < 5000 ? 1 : 0)}
+                  </span>
+                )}
+              </button>
+
+              {!loading && !error && (
+                <div className="flex items-center gap-1.5 bg-gray-100 px-3 py-2 rounded-xl">
+                  <HotelIcon size={13} className="text-gray-500" />
+                  <span className="text-sm font-bold text-gray-700 whitespace-nowrap">
+                    {filteredHotels.length}{hasMore && total > hotels.length ? ` / ${total}` : ''}
+                  </span>
+                </div>
+              )}
+              {loading && <Loader2 size={18} className="text-primary-600 animate-spin" />}
+            </div>
+          </div>
+
+          {/* ─ Row 2: Desktop-only search bar — mobile uses bottom sheet modal ─ */}
+          <div ref={headerDestRef} className="hidden md:block">
+
+            {/* ── Desktop: unified horizontal bar ── */}
+            <div className={`flex items-stretch bg-white border-2 border-gray-200 rounded-2xl overflow-visible hover:border-primary-300 focus-within:border-primary-500 transition-colors shadow-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
 
               {/* Destination */}
-              <div className="flex-[2] relative min-w-0" ref={headerDestRef}>
+              <div className="flex-[2] relative min-w-0">
                 <button
                   type="button"
                   onClick={() => setShowHeaderDrop(true)}
-                  className={`w-full h-full text-left px-5 py-2.5 hover:bg-gray-50/80 rounded-l-2xl transition-colors ${isRTL ? 'text-right' : ''}`}
+                  className={`w-full h-full text-left px-5 py-3.5 hover:bg-gray-50/80 rounded-l-2xl transition-colors ${isRTL ? 'text-right' : ''}`}
                 >
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
                     {language === 'fr' ? 'Destination' : language === 'ar' ? 'الوجهة' : 'Destination'}
                   </div>
                   <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
@@ -459,7 +548,6 @@ const Hotels = () => {
                   </div>
                 </button>
 
-                {/* Dropdown */}
                 {showHeaderDrop && headerResults.length > 0 && (
                   <div className="absolute top-[calc(100%+8px)] left-0 w-80 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 max-h-80 overflow-y-auto">
                     {headerResults.map(city => (
@@ -482,12 +570,11 @@ const Hotels = () => {
                 )}
               </div>
 
-              {/* Divider */}
-              <div className="w-px bg-gray-200 my-2 flex-shrink-0" />
+              <div className="w-px bg-gray-200 my-2.5 flex-shrink-0" />
 
               {/* Check-in */}
-              <div className="flex-1 min-w-0 px-4 py-2.5">
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+              <div className="flex-1 min-w-0 px-4 py-3.5">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
                   {language === 'fr' ? 'Arrivée' : language === 'ar' ? 'الوصول' : 'Check-in'}
                 </div>
                 <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
@@ -502,12 +589,11 @@ const Hotels = () => {
                 </div>
               </div>
 
-              {/* Divider */}
-              <div className="w-px bg-gray-200 my-2 flex-shrink-0" />
+              <div className="w-px bg-gray-200 my-2.5 flex-shrink-0" />
 
               {/* Check-out / Nights */}
-              <div className="flex-1 min-w-0 px-4 py-2.5">
-                <div className={`flex items-center gap-1 mb-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <div className="flex-1 min-w-0 px-4 py-3.5">
+                <div className={`flex items-center gap-1 mb-1.5 ${isRTL ? 'flex-row-reverse' : ''}`}>
                   <button
                     type="button"
                     onClick={() => setDateMode('checkout')}
@@ -525,7 +611,6 @@ const Hotels = () => {
                     {language === 'fr' ? 'Nuits' : language === 'ar' ? 'ليالي' : 'Nights'}
                   </button>
                 </div>
-
                 {dateMode === 'checkout' ? (
                   <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <Calendar size={13} className="text-gray-400 flex-shrink-0" />
@@ -553,16 +638,15 @@ const Hotels = () => {
                 )}
               </div>
 
-              {/* Divider */}
-              <div className="w-px bg-gray-200 my-2 flex-shrink-0" />
+              <div className="w-px bg-gray-200 my-2.5 flex-shrink-0" />
 
               {/* Guests */}
               <button
                 type="button"
                 onClick={() => setShowGuestSelector(true)}
-                className={`flex-1 min-w-0 px-4 py-2.5 text-left hover:bg-gray-50/80 transition-colors ${isRTL ? 'text-right' : ''}`}
+                className={`flex-1 min-w-0 px-4 py-3.5 text-left hover:bg-gray-50/80 transition-colors ${isRTL ? 'text-right' : ''}`}
               >
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
                   {language === 'fr' ? 'Voyageurs' : language === 'ar' ? 'الضيوف' : 'Guests'}
                 </div>
                 <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
@@ -574,62 +658,196 @@ const Hotels = () => {
                 </div>
               </button>
 
-              {/* Search button — part of the bar */}
+              {/* Search button */}
               <button
                 onClick={handleSearch}
-                className={`bg-primary-700 hover:bg-primary-800 active:scale-95 text-white px-6 font-bold text-sm transition-all flex items-center gap-2 flex-shrink-0 rounded-r-2xl ${isRTL ? 'rounded-r-none rounded-l-2xl' : ''}`}
+                className={`bg-primary-700 hover:bg-primary-800 active:scale-95 text-white px-7 font-bold text-sm transition-all flex items-center gap-2 flex-shrink-0 rounded-r-2xl ${isRTL ? 'rounded-r-none rounded-l-2xl' : ''}`}
               >
                 <Search size={17} />
-                <span className="hidden lg:inline">
-                  {language === 'fr' ? 'Rechercher' : language === 'ar' ? 'بحث' : 'Search'}
-                </span>
+                <span>{language === 'fr' ? 'Rechercher' : language === 'ar' ? 'بحث' : 'Search'}</span>
               </button>
-            </div>
-
-            {/* Filters + count */}
-            <div className={`flex items-center gap-2 flex-shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <button
-                onClick={openFilterModal}
-                className={`relative flex items-center gap-1.5 border-2 rounded-xl py-2 px-3 font-semibold text-sm transition-colors ${
-                  (filters.starRating.length > 0 || filters.boardingTypes.length > 0 || filters.themes.length > 0 || filters.priceRange[1] < 5000)
-                    ? 'bg-primary-50 border-primary-300 text-primary-700'
-                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
-                }`}
-              >
-                <SlidersHorizontal size={15} />
-                <span className="hidden sm:inline">
-                  {language === 'fr' ? 'Filtres' : language === 'ar' ? 'فلاتر' : 'Filters'}
-                </span>
-                {(filters.starRating.length + filters.boardingTypes.length + filters.themes.length + (filters.priceRange[1] < 5000 ? 1 : 0)) > 0 && (
-                  <span className="bg-primary-700 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                    {filters.starRating.length + filters.boardingTypes.length + filters.themes.length + (filters.priceRange[1] < 5000 ? 1 : 0)}
-                  </span>
-                )}
-              </button>
-
-              {/* Hotel count badge */}
-              {!loading && !error && (
-                <div className="flex items-center gap-1.5 bg-gray-100 px-3 py-2 rounded-xl">
-                  <HotelIcon size={13} className="text-gray-500" />
-                  <span className="text-sm font-bold text-gray-700 whitespace-nowrap">
-                    {filteredHotels.length}{total > hotels.length ? ` / ${total}` : ''}
-                  </span>
-                </div>
-              )}
-              {loading && <Loader2 size={18} className="text-primary-600 animate-spin" />}
             </div>
 
           </div>
         </div>
       </div>
 
+      {/* ══ Mobile search modal (centered) ══════════════════════════════════ */}
+      {showSearchModal && (
+        <div className="md:hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowSearchModal(false)}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
+
+            {/* Header */}
+            <div className={`flex items-center justify-between px-5 py-3 border-b border-gray-100 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <h3 className="text-base font-bold text-gray-900">
+                {language === 'fr' ? 'Modifier la recherche' : language === 'ar' ? 'تعديل البحث' : 'Edit search'}
+              </h3>
+              <button
+                onClick={() => setShowSearchModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <X size={18} className="text-gray-500" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <div className="px-5 py-4 space-y-4">
+
+              {/* Destination */}
+              <div ref={mobileDestRef}>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                  {language === 'fr' ? 'Destination' : language === 'ar' ? 'الوجهة' : 'Destination'}
+                </label>
+                <div className="flex items-center gap-2 border-2 border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-primary-500 transition-colors">
+                  <MapPin size={14} className="text-primary-500 flex-shrink-0" />
+                  <input
+                    value={headerDest}
+                    onChange={e => { setHeaderDest(e.target.value); setHeaderCity(null); setShowHeaderDrop(true); }}
+                    onFocus={() => setShowHeaderDrop(true)}
+                    placeholder={language === 'fr' ? 'Ville ou hôtel…' : language === 'ar' ? 'مدينة أو فندق…' : 'City or hotel…'}
+                    className={`bg-transparent text-sm font-semibold text-gray-800 outline-none w-full placeholder:text-gray-400 placeholder:font-normal ${isRTL ? 'text-right' : ''}`}
+                  />
+                  {headerDest && (
+                    <button type="button" onClick={() => { setHeaderDest(''); setHeaderCity(null); }} className="flex-shrink-0">
+                      <X size={14} className="text-gray-400" />
+                    </button>
+                  )}
+                </div>
+                {showHeaderDrop && headerResults.length > 0 && (
+                  <div className="mt-1.5 max-h-44 overflow-y-auto rounded-xl border border-gray-200 shadow-lg bg-white">
+                    {headerResults.slice(0, 10).map(city => (
+                      <button
+                        key={city.id}
+                        type="button"
+                        onClick={() => { handleHeaderCitySelect(city); }}
+                        className="w-full text-left px-3 py-2.5 hover:bg-primary-50 flex items-center gap-2.5 border-b border-gray-50 transition-colors last:border-0"
+                      >
+                        <div className="w-6 h-6 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
+                          <MapPin size={11} className="text-primary-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-gray-900">{city.name}</div>
+                          {city.region && <div className="text-xs text-gray-400 truncate">{city.region}{city.country !== 'Tunisie' ? `, ${city.country}` : ''}</div>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Check-in */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                  {language === 'fr' ? 'Arrivée' : language === 'ar' ? 'الوصول' : 'Check-in'}
+                </label>
+                <div className="flex items-center gap-2 border-2 border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-primary-500 transition-colors">
+                  <Calendar size={14} className="text-gray-400 flex-shrink-0" />
+                  <input
+                    type="date"
+                    value={searchCheckIn}
+                    onChange={e => setSearchCheckIn(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Check-out / Nights */}
+              <div>
+                <div className={`flex items-center gap-2 mb-1.5 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <button
+                    type="button"
+                    onClick={() => setDateMode('checkout')}
+                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg transition-all ${dateMode === 'checkout' ? 'bg-primary-700 text-white' : 'text-gray-400 bg-gray-100'}`}
+                  >
+                    <Calendar size={9} />
+                    {language === 'fr' ? 'Départ' : language === 'ar' ? 'مغادرة' : 'Check-out'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDateMode('nights')}
+                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg transition-all ${dateMode === 'nights' ? 'bg-primary-700 text-white' : 'text-gray-400 bg-gray-100'}`}
+                  >
+                    <Moon size={9} />
+                    {language === 'fr' ? 'Nuits' : language === 'ar' ? 'ليالي' : 'Nights'}
+                  </button>
+                </div>
+                {dateMode === 'checkout' ? (
+                  <div className="flex items-center gap-2 border-2 border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-primary-500 transition-colors">
+                    <Calendar size={14} className="text-gray-400 flex-shrink-0" />
+                    <input
+                      type="date"
+                      value={searchCheckOut}
+                      onChange={e => setSearchCheckOut(e.target.value)}
+                      min={searchCheckIn || new Date().toISOString().split('T')[0]}
+                      className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 border-2 border-gray-200 rounded-xl px-3 py-2.5">
+                    <button type="button" onClick={() => setSearchNights(n => Math.max(1, n - 1))}
+                      className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center flex-shrink-0 transition-colors">
+                      <Minus size={12} />
+                    </button>
+                    <span className="text-base font-bold text-primary-700 min-w-[2ch] text-center">{searchNights}</span>
+                    <span className="text-sm text-gray-500 flex-1">
+                      {language === 'fr' ? (searchNights === 1 ? 'nuit' : 'nuits') : language === 'ar' ? (searchNights === 1 ? 'ليلة' : 'ليالي') : (searchNights === 1 ? 'night' : 'nights')}
+                    </span>
+                    <button type="button" onClick={() => setSearchNights(n => Math.min(30, n + 1))}
+                      className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center flex-shrink-0 transition-colors">
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Guests */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                  {language === 'fr' ? 'Voyageurs' : language === 'ar' ? 'الضيوف' : 'Guests'}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowGuestSelector(true)}
+                  className={`w-full flex items-center gap-2 border-2 border-gray-200 rounded-xl px-3 py-2.5 hover:border-primary-300 transition-colors text-left ${isRTL ? 'flex-row-reverse text-right' : ''}`}
+                >
+                  <Users size={14} className="text-gray-400 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-gray-800">
+                    {searchRooms} {language === 'fr' ? 'chambre(s)' : language === 'ar' ? 'غرفة' : 'room(s)'} · {searchRoomsConfig.reduce((s, r) => s + r.adults, 0)} {language === 'fr' ? 'adulte(s)' : language === 'ar' ? 'بالغ' : 'adult(s)'}
+                    {searchRoomsConfig.reduce((s, r) => s + r.children.length, 0) > 0 && ` · ${searchRoomsConfig.reduce((s, r) => s + r.children.length, 0)} ${language === 'fr' ? 'enfant(s)' : language === 'ar' ? 'أطفال' : 'child(ren)'}`}
+                  </span>
+                </button>
+              </div>
+
+              {/* Search CTA */}
+              <button
+                onClick={() => { handleSearch(); setShowSearchModal(false); }}
+                className={`w-full flex items-center justify-center gap-2 bg-primary-700 hover:bg-primary-800 active:scale-95 text-white px-4 py-3.5 rounded-2xl font-bold text-base transition-all shadow-sm ${isRTL ? 'flex-row-reverse' : ''}`}
+              >
+                <Search size={18} />
+                <span>{language === 'fr' ? 'Rechercher' : language === 'ar' ? 'بحث' : 'Search'}</span>
+              </button>
+
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 overflow-x-hidden">
         {/* Active Filters Summary */}
-        {(filters.starRating.length > 0 || filters.boardingTypes.length > 0 || filters.themes.length > 0 || filters.priceRange[1] < 5000 || filters.sortBy !== 'price-low') && (
+        {(filters.starRating.length > 0 || filters.boardingTypes.length > 0 || filters.themes.length > 0 || filters.priceRange[1] < 5000 || filters.sortBy !== 'recommended') && (
           <div className="mb-6 flex items-center justify-between bg-white rounded-xl shadow-md p-4">
             <div className={`flex items-center gap-2 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
-              {filters.sortBy !== 'price-low' && (
+              {filters.sortBy !== 'recommended' && (
                 <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-medium">
                   {filters.sortBy === 'price-low' ? (language === 'fr' ? 'Prix ↑' : 'Price ↑') :
                    filters.sortBy === 'price-high' ? (language === 'fr' ? 'Prix ↓' : 'Price ↓') :
@@ -658,7 +876,7 @@ const Hotels = () => {
           </div>
         )}
 
-        <div className="flex gap-8">
+        <div className="flex gap-8 w-full min-w-0 overflow-hidden">
           {/* Guest Selector Modal */}
           {showGuestSelector && (
             <>
@@ -852,7 +1070,7 @@ const Hotels = () => {
           )}
 
           {/* Results */}
-          <div className={`flex-1 ${isRTL ? 'order-1' : ''}`}>
+          <div className={`flex-1 min-w-0 w-full overflow-hidden ${isRTL ? 'order-1' : ''}`}>
             {loading ? (
               <div className="flex flex-col items-center justify-center py-20">
                 <Loader2 size={48} className="text-primary-700 animate-spin mb-4" />
@@ -896,42 +1114,39 @@ const Hotels = () => {
               </div>
             ) : (
               <>
-                <div className="space-y-6">
-                  {filteredHotels.map((hotel) => (
-                    <HotelResultCard
-                      key={hotel.Id}
-                      hotel={hotel}
-                      checkIn={searchCheckIn}
-                      checkOut={searchCheckOut}
-                      roomsConfig={searchRoomsConfig}
-                    />
+                <div className="space-y-3 md:space-y-6">
+                  {filteredHotels.map((hotel, idx) => (
+                    <div key={hotel.Id} data-hotel-index={idx}>
+                      <HotelResultCard
+                        hotel={hotel}
+                        checkIn={searchCheckIn}
+                        checkOut={searchCheckOut}
+                        roomsConfig={searchRoomsConfig}
+                      />
+                    </div>
                   ))}
                 </div>
 
-                {/* Load more */}
-                {(hasMore || loadingMore) && (
-                  <div className="flex flex-col items-center gap-3 mt-8 mb-4">
-                    <button
-                      onClick={loadMoreHotels}
-                      disabled={loadingMore}
-                      className="flex items-center gap-2.5 px-8 py-3 bg-primary-700 hover:bg-primary-800 active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 text-white font-semibold rounded-xl transition-all shadow-sm hover:shadow-md"
-                    >
-                      {loadingMore
-                        ? <><Loader2 size={16} className="animate-spin" />{language === 'fr' ? 'Chargement…' : language === 'ar' ? 'جاري التحميل…' : 'Loading…'}</>
-                        : <>{language === 'fr' ? 'Voir plus d\'hôtels' : language === 'ar' ? 'عرض المزيد من الفنادق' : 'Load more hotels'}</>
-                      }
-                    </button>
-                    {total > 0 && (
+                {/* Infinite-scroll sentinel + loading indicator */}
+                <div ref={sentinelRef} className="flex flex-col items-center gap-2 py-6">
+                  {loadingMore && (
+                    <>
+                      <Loader2 size={22} className="text-primary-500 animate-spin" />
                       <p className="text-xs text-gray-400">
-                        {language === 'fr'
-                          ? `${hotels.length} sur ${total} hôtels affichés`
-                          : language === 'ar'
-                          ? `${hotels.length} من أصل ${total} فندق`
-                          : `Showing ${hotels.length} of ${total} hotels`}
+                        {language === 'fr' ? 'Chargement…' : language === 'ar' ? 'جاري التحميل…' : 'Loading…'}
                       </p>
-                    )}
-                  </div>
-                )}
+                    </>
+                  )}
+                  {!hasMore && !loadingMore && hotels.length > 0 && (
+                    <p className="text-xs text-gray-400">
+                      {language === 'fr'
+                        ? `${hotels.length} hôtel${hotels.length > 1 ? 's' : ''} disponible${hotels.length > 1 ? 's' : ''}`
+                        : language === 'ar'
+                        ? `${hotels.length} فندق متاح`
+                        : `${hotels.length} hotel${hotels.length > 1 ? 's' : ''} available`}
+                    </p>
+                  )}
+                </div>
               </>
             )}
           </div>

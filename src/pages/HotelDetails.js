@@ -3,17 +3,20 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { 
-  ArrowLeft, MapPin, Star, Phone, Mail, Wifi, Car, Utensils, 
-  Waves, Coffee, Wind, Dumbbell, Droplets, Users, Palmtree, Baby, 
+import {
+  ArrowLeft, MapPin, Star, Phone, Mail, Wifi, Car, Utensils,
+  Waves, Coffee, Wind, Dumbbell, Droplets, Users, Palmtree, Baby,
   Heart, TreePine, PartyPopper, Briefcase, Home, ChevronDown, ChevronUp,
   Calendar, Check, X, Info, DollarSign, Loader2, AlertCircle, Navigation,
-  Clock, Shield, Award, Image as ImageIcon, ChevronRight, CheckCircle2
+  Clock, Shield, Award, Image as ImageIcon, ChevronRight, CheckCircle2,
+  MessageSquare, ThumbsUp
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useHotels } from '../context/HotelsContext';
 import GuestSelector from '../components/landing/GuestSelector';
 import { API_ENDPOINTS } from '../config/api';
+import useTripAdvisor from '../hooks/useTripAdvisor';
+import tripadvisorLogo from '../assets/images/tripadvasor_logo.png';
 
 // Fix Leaflet default marker icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -69,13 +72,23 @@ const HotelDetails = () => {
   const [hotel, setHotel] = useState(null);
   const [hotelDetails, setHotelDetails] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  /* ── TripAdvisor (full: also loads reviews + photos) ── */
+  // Include city + address for maximum TA search accuracy
+  const taQuery = hotel
+    ? [hotel.Name, hotel.City?.Name, hotel.Adress || hotel.Address].filter(Boolean).join(' ')
+    : null;
+  const { taData, reviews: taReviews, photos: taPhotos } = useTripAdvisor(
+    taQuery,
+    { fetchFull: true }
+  );
   const [selectedImage, setSelectedImage] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [selectedBoarding, setSelectedBoarding] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [expandedSections, setExpandedSections] = useState({
-    description: false,
-    facilities: false,
+    description: true,
+    facilities: true,
     rooms: true,
     location: false,
     notes: true
@@ -682,26 +695,61 @@ const HotelDetails = () => {
                 alt={allImages[selectedImage]?.Alt || hotel.Name}
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
-              
-              {/* Hotel Name Overlay - Responsive */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 lg:p-8 text-white">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent"></div>
+
+              {/* ── Hotel info overlay ──────────────────────────────── */}
+              <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
                 <div className="max-w-7xl mx-auto">
-                  <div className={`flex items-center gap-2 mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    {renderStars(starRating)}
-                    <span className="text-white/90 text-xs md:text-sm">
-                      {starRating} {language === 'fr' ? 'étoiles' : language === 'ar' ? 'نجوم' : 'stars'}
-                    </span>
-                  </div>
-                  <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold mb-2">{hotel.Name}</h1>
+                  {/* Stars */}
+                  {starRating > 0 && (
+                    <div className={`flex items-center gap-1 mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      {Array.from({ length: starRating }, (_, i) => (
+                        <Star key={i} size={14} className="fill-amber-400 text-amber-400" />
+                      ))}
+                      {Array.from({ length: 5 - starRating }, (_, i) => (
+                        <Star key={`e${i}`} size={14} className="fill-white/30 text-white/30" />
+                      ))}
+                      <span className="text-white/70 text-xs ml-1">
+                        {starRating} {language === 'fr' ? 'étoiles' : language === 'ar' ? 'نجوم' : 'stars'}
+                      </span>
+                    </div>
+                  )}
+                  {/* Hotel name */}
+                  <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-2 drop-shadow-md">
+                    {hotel.Name}
+                  </h1>
+                  {/* Address */}
                   {address && (
-                    <div className={`flex items-center gap-2 text-white/90 text-sm md:text-base lg:text-lg ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      <MapPin size={18} />
+                    <div className={`flex items-center gap-1.5 text-white/80 text-sm md:text-base mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <MapPin size={15} className="flex-shrink-0" />
                       <span>{address}</span>
+                    </div>
+                  )}
+                  {/* TripAdvisor badge */}
+                  {taData?.rating && (
+                    <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-lg px-2.5 py-1">
+                        {taData.ratingImageUrl
+                          ? <img src={taData.ratingImageUrl} alt={`${taData.rating}`} className="h-4" />
+                          : <span className="text-xs font-bold text-white">{taData.rating.toFixed(1)}</span>
+                        }
+                        {taData.numReviews && (
+                          <span className="text-xs text-white/80">
+                            · {taData.numReviews.toLocaleString()} {language === 'fr' ? 'avis' : language === 'ar' ? 'تقييم' : 'reviews'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
+
+              {/* Photo counter chip */}
+              {allImages.length > 1 && (
+                <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white text-xs font-semibold px-2.5 py-1 rounded-full">
+                  {selectedImage + 1} / {allImages.length}
+                </div>
+              )}
               
               {/* Navigation Arrows */}
               {allImages.length > 1 && (
@@ -1507,6 +1555,13 @@ const HotelDetails = () => {
             )}
 
             {/* Map + Contact & Important Info - Side by Side */}
+            {/* Section header */}
+            <div className={`flex items-center gap-3 mb-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <span className="w-1 h-5 bg-primary-500 rounded-full flex-shrink-0 inline-block" />
+              <h2 className="text-sm font-bold text-gray-600 uppercase tracking-widest">
+                {language === 'fr' ? 'Localisation & Contact' : language === 'ar' ? 'الموقع والتواصل' : 'Location & Contact'}
+              </h2>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
               {/* Map Component */}
               {latitude && longitude ? (
@@ -1543,55 +1598,58 @@ const HotelDetails = () => {
                   </div>
                 )}
 
-              {/* Contact & Important Info Combined */}
-              <div className="space-y-6">
-                {/* Contact Info */}
+              {/* Info Card — contact + timings + location in one clean card */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+
+                {/* Contact */}
                 {(phone || email) && (
-                  <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <Phone size={20} className="text-primary-600" />
+                  <div className="px-5 py-4">
+                    <p className={`text-xs font-bold text-primary-600 uppercase tracking-wider mb-3 ${isRTL ? 'text-right' : ''}`}>
                       {language === 'fr' ? 'Contact' : language === 'ar' ? 'اتصل بنا' : 'Contact'}
-                    </h3>
-                    <div className="space-y-3">
+                    </p>
+                    <div className="space-y-2">
                       {phone && (
-                        <a href={`tel:${phone}`} className="flex items-center gap-3 text-gray-700 hover:text-primary-700 transition-colors">
-                          <Phone size={18} className="text-primary-600" />
-                          <span>{phone}</span>
+                        <a href={`tel:${phone}`} className={`flex items-center gap-3 text-gray-700 hover:text-primary-700 transition-colors group ${isRTL ? 'flex-row-reverse' : ''}`}>
+                          <div className="bg-primary-50 group-hover:bg-primary-100 p-2 rounded-lg transition-colors">
+                            <Phone size={16} className="text-primary-600" />
+                          </div>
+                          <span className="text-sm font-medium">{phone}</span>
                         </a>
                       )}
                       {email && (
-                        <a href={`mailto:${email}`} className="flex items-center gap-3 text-gray-700 hover:text-primary-700 transition-colors">
-                          <Mail size={18} className="text-primary-600" />
-                          <span>{email}</span>
+                        <a href={`mailto:${email}`} className={`flex items-center gap-3 text-gray-700 hover:text-primary-700 transition-colors group ${isRTL ? 'flex-row-reverse' : ''}`}>
+                          <div className="bg-primary-50 group-hover:bg-primary-100 p-2 rounded-lg transition-colors">
+                            <Mail size={16} className="text-primary-600" />
+                          </div>
+                          <span className="text-sm font-medium">{email}</span>
                         </a>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* Check-in/Check-out Times */}
+                {/* Timings */}
                 {(checkInTime || checkOutTime) && (
-                  <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <Clock size={20} className="text-primary-600" />
+                  <div className="px-5 py-4">
+                    <p className={`text-xs font-bold text-primary-600 uppercase tracking-wider mb-3 ${isRTL ? 'text-right' : ''}`}>
                       {language === 'fr' ? 'Horaires' : language === 'ar' ? 'أوقات' : 'Timings'}
-                    </h3>
-                    <div className="space-y-3">
+                    </p>
+                    <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
                       {checkInTime && (
-                        <div className="flex items-center gap-3 text-gray-700">
-                          <Calendar size={18} className="text-green-600" />
-                          <div>
-                            <p className="text-sm text-gray-500">{language === 'fr' ? 'Check-in' : language === 'ar' ? 'تسجيل الدخول' : 'Check-in'}</p>
-                            <p className="font-semibold">{checkInTime}</p>
+                        <div className={`flex items-center gap-2 bg-green-50 border border-green-200 px-3 py-2 rounded-xl ${isRTL ? 'flex-row-reverse' : ''}`}>
+                          <Calendar size={15} className="text-green-600 flex-shrink-0" />
+                          <div className={isRTL ? 'text-right' : ''}>
+                            <p className="text-[10px] text-green-600 font-semibold uppercase">{language === 'fr' ? 'Arrivée' : language === 'ar' ? 'وصول' : 'Check-in'}</p>
+                            <p className="text-sm font-bold text-gray-900">{checkInTime}</p>
                           </div>
                         </div>
                       )}
                       {checkOutTime && (
-                        <div className="flex items-center gap-3 text-gray-700">
-                          <Calendar size={18} className="text-red-600" />
-                          <div>
-                            <p className="text-sm text-gray-500">{language === 'fr' ? 'Check-out' : language === 'ar' ? 'تسجيل الخروج' : 'Check-out'}</p>
-                            <p className="font-semibold">{checkOutTime}</p>
+                        <div className={`flex items-center gap-2 bg-red-50 border border-red-200 px-3 py-2 rounded-xl ${isRTL ? 'flex-row-reverse' : ''}`}>
+                          <Calendar size={15} className="text-red-500 flex-shrink-0" />
+                          <div className={isRTL ? 'text-right' : ''}>
+                            <p className="text-[10px] text-red-500 font-semibold uppercase">{language === 'fr' ? 'Départ' : language === 'ar' ? 'مغادرة' : 'Check-out'}</p>
+                            <p className="text-sm font-bold text-gray-900">{checkOutTime}</p>
                           </div>
                         </div>
                       )}
@@ -1601,44 +1659,51 @@ const HotelDetails = () => {
 
                 {/* Location */}
                 {(address || cityName) && (
-                  <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <MapPin size={20} className="text-primary-600" />
-                      {language === 'fr' ? 'Localisation' : language === 'ar' ? 'الموقع' : 'Location'}
-                    </h3>
-                    <div className="text-gray-700 space-y-1">
-                      {address && <p>{address}</p>}
-                      {cityName && <p>{cityName}, {countryName}</p>}
+                  <div className="px-5 py-4">
+                    <p className={`text-xs font-bold text-primary-600 uppercase tracking-wider mb-2 ${isRTL ? 'text-right' : ''}`}>
+                      {language === 'fr' ? 'Adresse' : language === 'ar' ? 'العنوان' : 'Address'}
+                    </p>
+                    <div className={`flex items-start gap-2 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
+                      <MapPin size={15} className="text-primary-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-gray-700 space-y-0.5">
+                        {address && <p>{address}</p>}
+                        {cityName && <p className="text-gray-500">{cityName}{countryName ? `, ${countryName}` : ''}</p>}
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Hotel Information - Grid Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-              
+            {/* ── Hotel Information ─────────────────────────────────── */}
+            {/* Section header */}
+            <div className={`flex items-center gap-3 mb-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <span className="w-1 h-5 bg-primary-500 rounded-full flex-shrink-0 inline-block" />
+              <h2 className="text-sm font-bold text-gray-600 uppercase tracking-widest">
+                {language === 'fr' ? "À propos de l'hôtel" : language === 'ar' ? 'عن الفندق' : 'About the hotel'}
+              </h2>
+            </div>
+            <div className="space-y-4">
+
               {/* Description */}
               {longDescription && (
-                <div className="bg-white rounded-lg md:rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                   <button
                     onClick={() => toggleSection('description')}
-                    className={`w-full px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between hover:bg-gray-50 transition-colors ${isRTL ? 'flex-row-reverse' : ''}`}
+                    className={`w-full px-5 py-4 flex items-center justify-between transition-colors ${expandedSections.description ? 'bg-primary-50 border-l-4 border-primary-500' : 'hover:bg-gray-50'} ${isRTL ? 'flex-row-reverse' : ''}`}
                   >
-                    <div className={`flex items-center gap-2 sm:gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      <div className="bg-primary-100 p-1.5 sm:p-2 rounded-lg">
-                        <Info size={18} className="sm:w-5 sm:h-5 text-primary-600" />
-                      </div>
-                      <h3 className="text-base sm:text-lg font-bold text-gray-900">
-                        {language === 'fr' ? 'Description' : language === 'ar' ? 'الوصف' : 'Description'}
-                      </h3>
-                    </div>
-                    {expandedSections.description ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
+                    <span className={`text-sm font-bold text-gray-900 flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <Info size={16} className="text-primary-500" />
+                      {language === 'fr' ? 'Description' : language === 'ar' ? 'الوصف' : 'Description'}
+                    </span>
+                    {expandedSections.description
+                      ? <ChevronUp size={18} className="text-gray-400 flex-shrink-0" />
+                      : <ChevronDown size={18} className="text-gray-400 flex-shrink-0" />}
                   </button>
                   {expandedSections.description && (
-                    <div className={`px-5 py-4 border-t border-gray-100 ${isRTL ? 'text-right' : 'text-left'}`}>
-                      <div 
-                        className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
+                    <div className={`px-5 pb-5 border-t border-gray-100 pt-4 ${isRTL ? 'text-right' : 'text-left'}`}>
+                      <div
+                        className="prose prose-sm max-w-none text-gray-600 leading-relaxed"
                         dangerouslySetInnerHTML={{ __html: longDescription }}
                       />
                     </div>
@@ -1648,37 +1713,33 @@ const HotelDetails = () => {
 
               {/* Facilities */}
               {facilities.length > 0 && (
-                <div className="bg-white rounded-lg md:rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                   <button
                     onClick={() => toggleSection('facilities')}
-                    className={`w-full px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between hover:bg-gray-50 transition-colors ${isRTL ? 'flex-row-reverse' : ''}`}
+                    className={`w-full px-5 py-4 flex items-center justify-between transition-colors ${expandedSections.facilities ? 'bg-primary-50 border-l-4 border-primary-500' : 'hover:bg-gray-50'} ${isRTL ? 'flex-row-reverse' : ''}`}
                   >
-                    <div className={`flex items-center gap-2 sm:gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      <div className="bg-blue-100 p-1.5 sm:p-2 rounded-lg">
-                        <Wifi size={18} className="sm:w-5 sm:h-5 text-blue-600" />
-                      </div>
-                      <h3 className="text-base sm:text-lg font-bold text-gray-900">
-                        {language === 'fr' ? 'Équipements' : language === 'ar' ? 'المرافق' : 'Facilities'}
-                      </h3>
-                      <span className="text-xs sm:text-sm text-gray-500">({facilities.length})</span>
-                    </div>
-                    {expandedSections.facilities ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
+                    <span className={`text-sm font-bold text-gray-900 flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <Wifi size={16} className="text-primary-500" />
+                      {language === 'fr' ? 'Équipements' : language === 'ar' ? 'المرافق' : 'Facilities'}
+                      <span className="text-xs font-normal text-gray-400">({facilities.length})</span>
+                    </span>
+                    {expandedSections.facilities
+                      ? <ChevronUp size={18} className="text-gray-400 flex-shrink-0" />
+                      : <ChevronDown size={18} className="text-gray-400 flex-shrink-0" />}
                   </button>
                   {expandedSections.facilities && (
-                    <div className="px-4 sm:px-5 py-3 sm:py-4 border-t border-gray-100">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                    <div className="px-5 pb-5 border-t border-gray-100 pt-4">
+                      <div className="flex flex-wrap gap-2">
                         {facilities.map((facility, index) => {
                           const facilityName = facility?.Title || facility?.Name || (typeof facility === 'string' ? facility : '');
                           if (!facilityName) return null;
                           return (
-                            <div 
-                              key={index} 
-                              className={`flex items-center gap-2 p-2 bg-gray-50 rounded-lg ${isRTL ? 'flex-row-reverse' : ''}`}
+                            <div
+                              key={index}
+                              className={`inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 text-xs font-medium px-3 py-1.5 rounded-full ${isRTL ? 'flex-row-reverse' : ''}`}
                             >
-                              <div className="text-blue-600 flex-shrink-0">
-                                {getFacilityIcon(facilityName)}
-                              </div>
-                              <span className="text-sm text-gray-700">{facilityName}</span>
+                              <span className="text-blue-500">{getFacilityIcon(facilityName)}</span>
+                              {facilityName}
                             </div>
                           );
                         })}
@@ -1688,52 +1749,40 @@ const HotelDetails = () => {
                 </div>
               )}
 
-              {/* Tags & Themes Combined */}
+              {/* Tags & Themes */}
               {(tags.length > 0 || themes.length > 0) && (
-                <div className="bg-white rounded-lg md:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-5 hover:shadow-md transition-shadow">
+                <div className="bg-white rounded-2xl border border-gray-200 p-5">
                   {tags.length > 0 && (
-                    <div className="mb-4">
-                      <div className={`flex items-center gap-2 sm:gap-3 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <div className="bg-purple-100 p-1.5 sm:p-2 rounded-lg">
-                          <Award size={18} className="sm:w-5 sm:h-5 text-purple-600" />
-                        </div>
-                        <h3 className="text-base sm:text-lg font-bold text-gray-900">
-                          {language === 'fr' ? 'Caractéristiques' : language === 'ar' ? 'المميزات' : 'Features'}
-                        </h3>
-                      </div>
+                    <div className={themes.length > 0 ? 'mb-5' : ''}>
+                      <p className={`text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ${isRTL ? 'text-right' : ''}`}>
+                        {language === 'fr' ? 'Caractéristiques' : language === 'ar' ? 'المميزات' : 'Features'}
+                      </p>
                       <div className={`flex flex-wrap gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                         {tags.map((tag, index) => (
-                          <div key={index} className={`inline-flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-sm border border-purple-200 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                            {tag.Image && (
-                              <img src={tag.Image} alt={tag.Title} className="w-4 h-4 object-contain" />
-                            )}
-                            <span className="font-medium">{tag.Title}</span>
+                          <div key={index} className={`inline-flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full text-xs font-semibold border border-purple-100 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            {tag.Image && <img src={tag.Image} alt={tag.Title} className="w-3.5 h-3.5 object-contain" />}
+                            {tag.Title}
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-                  
                   {themes.length > 0 && (
                     <div>
-                      <div className={`flex items-center gap-3 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <div className="bg-pink-100 p-2 rounded-lg">
-                          <Star size={20} className="text-pink-600" />
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-900">
-                          {language === 'fr' ? 'Thèmes' : language === 'ar' ? 'المواضيع' : 'Themes'}
-                        </h3>
-                      </div>
+                      {tags.length > 0 && <div className="border-t border-gray-100 mb-4" />}
+                      <p className={`text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ${isRTL ? 'text-right' : ''}`}>
+                        {language === 'fr' ? 'Thèmes' : language === 'ar' ? 'المواضيع' : 'Themes'}
+                      </p>
                       <div className={`flex flex-wrap gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                         {themes.map((theme, index) => {
                           const themeName = theme.Name || theme;
                           return (
-                            <div 
+                            <div
                               key={index}
-                              className={`inline-flex items-center gap-2 px-3 py-1.5 bg-pink-50 text-pink-700 rounded-lg text-sm border border-pink-200 ${isRTL ? 'flex-row-reverse' : ''}`}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 bg-pink-50 text-pink-700 rounded-full text-xs font-semibold border border-pink-100 ${isRTL ? 'flex-row-reverse' : ''}`}
                             >
                               {getThemeIcon(themeName)}
-                              <span className="font-medium">{themeName}</span>
+                              {themeName}
                             </div>
                           );
                         })}
@@ -1743,35 +1792,174 @@ const HotelDetails = () => {
                 </div>
               )}
 
-              {/* Important Notes */}
+              {/* Important Notes — always visible amber callout */}
               {note && (
-                <div className="bg-amber-50 rounded-lg md:rounded-xl shadow-sm border-2 border-amber-300 overflow-hidden hover:shadow-md transition-shadow">
-                  <button
-                    onClick={() => toggleSection('notes')}
-                    className={`w-full px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between hover:bg-amber-100 transition-colors ${isRTL ? 'flex-row-reverse' : ''}`}
-                  >
-                    <div className={`flex items-center gap-2 sm:gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      <div className="bg-amber-200 p-1.5 sm:p-2 rounded-lg">
-                        <AlertCircle size={18} className="sm:w-5 sm:h-5 text-amber-700" />
-                      </div>
-                      <h3 className="text-base sm:text-lg font-bold text-amber-900">
-                        {language === 'fr' ? 'Informations importantes' : language === 'ar' ? 'معلومات هامة' : 'Important Information'}
-                      </h3>
-                    </div>
-                    {expandedSections.notes ? <ChevronUp size={20} className="text-amber-600" /> : <ChevronDown size={20} className="text-amber-600" />}
-                  </button>
-                  {expandedSections.notes && (
-                    <div className={`px-5 py-4 bg-white border-t border-amber-200 ${isRTL ? 'text-right' : 'text-left'}`}>
-                      <div 
-                        className="prose prose-sm max-w-none text-gray-800 leading-relaxed"
-                        dangerouslySetInnerHTML={{ __html: note }}
-                      />
-                    </div>
-                  )}
+                <div className={`bg-amber-50 rounded-2xl border border-amber-200 overflow-hidden`}>
+                  <div className={`flex items-center gap-2 px-5 py-3 border-b border-amber-200 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <AlertCircle size={16} className="text-amber-600 flex-shrink-0" />
+                    <span className="text-sm font-bold text-amber-800">
+                      {language === 'fr' ? 'Informations importantes' : language === 'ar' ? 'معلومات هامة' : 'Important Information'}
+                    </span>
+                  </div>
+                  <div className={`px-5 py-4 ${isRTL ? 'text-right' : 'text-left'}`}>
+                    <div
+                      className="prose prose-sm max-w-none text-amber-900 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: note }}
+                    />
+                  </div>
                 </div>
               )}
 
             </div>
+
+            {/* ── TripAdvisor Section ─────────────────────────────────── */}
+            {taData && (
+              <div className="space-y-5">
+
+                {/* Section header — unified style */}
+                <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <span className="w-1 h-5 bg-primary-500 rounded-full flex-shrink-0 inline-block" />
+                    <img src={tripadvisorLogo} alt="TripAdvisor" className="h-7" />
+                    <h3 className="text-sm font-bold text-gray-600 uppercase tracking-widest">TripAdvisor</h3>
+                  </div>
+                  {taData.webUrl && (
+                    <a
+                      href={taData.webUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-[#34E0A1] hover:underline font-semibold"
+                    >
+                      {language === 'fr' ? 'Voir sur TripAdvisor →' : language === 'ar' ? 'عرض على TripAdvisor ←' : 'View on TripAdvisor →'}
+                    </a>
+                  )}
+                </div>
+
+                {/* Rating card */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className={`flex flex-col sm:flex-row items-center gap-6 p-6 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
+
+                    {/* Big score */}
+                    <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                      <div className="w-28 h-28 rounded-full bg-[#34E0A1] flex items-center justify-center shadow-lg">
+                        <span className="text-5xl font-black text-white leading-none">{taData.rating?.toFixed(1)}</span>
+                      </div>
+                      <span className="text-sm text-gray-400 font-medium">/ 5.0</span>
+                    </div>
+
+                    {/* Info */}
+                    <div className={`flex-1 min-w-0 ${isRTL ? 'text-right' : 'text-left'}`}>
+                      {taData.rating && (
+                        <div className={`flex items-center gap-2 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                          {[1,2,3,4,5].map(i => (
+                            <div
+                              key={i}
+                              className={`w-6 h-6 rounded-full ${i <= Math.round(taData.rating) ? 'bg-[#34E0A1]' : 'bg-gray-200'}`}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {taData.numReviews && (
+                        <p className="text-2xl font-bold text-gray-900 mb-1">
+                          {taData.numReviews.toLocaleString()}{' '}
+                          <span className="text-lg font-normal text-gray-500">
+                            {language === 'fr' ? 'avis voyageurs' : language === 'ar' ? 'تقييم' : 'reviews'}
+                          </span>
+                        </p>
+                      )}
+                      {taData.rankingData?.ranking_string && (
+                        <p className="text-base text-gray-600 flex items-center gap-1.5">
+                          <Award size={16} className="text-[#34E0A1] flex-shrink-0" />
+                          {taData.rankingData.ranking_string}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* TA Photos */}
+                {taPhotos.length > 0 && (
+                  <div>
+                    <p className={`text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 ${isRTL ? 'text-right' : ''}`}>
+                      {language === 'fr' ? 'Photos TripAdvisor' : language === 'ar' ? 'صور TripAdvisor' : 'TripAdvisor Photos'}
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      {taPhotos.map((p, i) => {
+                        const src = p.images?.original?.url || p.images?.large?.url || p.images?.medium?.url;
+                        if (!src) return null;
+                        return (
+                          <a key={i} href={p.source?.url || taData.webUrl} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={src}
+                              alt={p.caption || `Photo ${i + 1}`}
+                              className="w-full h-28 sm:h-24 object-cover rounded-xl hover:opacity-90 transition-opacity shadow-sm"
+                              loading="lazy"
+                            />
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* TA Reviews */}
+                {taReviews.length > 0 && (
+                  <div>
+                    <p className={`text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 ${isRTL ? 'text-right' : ''}`}>
+                      {language === 'fr' ? 'Derniers avis' : language === 'ar' ? 'أحدث التقييمات' : 'Recent reviews'}
+                    </p>
+                    <div className="space-y-4">
+                      {taReviews.slice(0, 3).map((r, i) => (
+                        <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                          <div className={`flex items-start gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            <div className="w-10 h-10 rounded-full bg-[#34E0A1]/20 flex items-center justify-center flex-shrink-0">
+                              <MessageSquare size={18} className="text-[#34E0A1]" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              {/* Title + rating */}
+                              <div className={`flex items-start justify-between gap-2 mb-2 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                <span className="text-base font-bold text-gray-900 leading-tight">{r.title || ''}</span>
+                                {r.rating && (
+                                  <div className={`flex items-center gap-1 flex-shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                    {[1,2,3,4,5].map(s => (
+                                      <div key={s} className={`w-3 h-3 rounded-full ${s <= r.rating ? 'bg-[#34E0A1]' : 'bg-gray-200'}`} />
+                                    ))}
+                                    <span className="text-sm font-bold text-gray-700 ml-1">{r.rating}.0</span>
+                                  </div>
+                                )}
+                              </div>
+                              {/* Review text */}
+                              <p className={`text-sm text-gray-700 leading-relaxed line-clamp-4 ${isRTL ? 'text-right' : ''}`}>{r.text}</p>
+                              {/* Meta */}
+                              <div className={`flex items-center gap-4 mt-3 text-xs text-gray-400 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                {r.username && <span className="font-medium text-gray-500">{r.username}</span>}
+                                {r.published_date && <span>{new Date(r.published_date).toLocaleDateString('fr-FR')}</span>}
+                                {r.helpful_votes > 0 && (
+                                  <span className="flex items-center gap-1">
+                                    <ThumbsUp size={12} /> {r.helpful_votes}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {taData.webUrl && (
+                      <a
+                        href={taData.webUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-4 block text-center text-sm text-[#34E0A1] hover:underline font-bold"
+                      >
+                        {language === 'fr' ? `Voir tous les avis sur TripAdvisor →` : language === 'ar' ? `عرض كل التقييمات →` : `View all reviews on TripAdvisor →`}
+                      </a>
+                    )}
+                  </div>
+                )}
+
+              </div>
+            )}
 
             {/* Remove old sequential sections below */}
             {/* Long Description - REMOVED, now in Bento */}

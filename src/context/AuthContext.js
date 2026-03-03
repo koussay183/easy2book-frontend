@@ -55,6 +55,11 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (data.status === 'success') {
+        // New flow: no tokens returned — user must verify email first
+        if (!data.data?.user) {
+          return { success: true, verificationRequired: true, message: data.message };
+        }
+        // Legacy fallback (auto-verified user)
         setUser(data.data.user);
         setToken(data.accessToken);
         localStorage.setItem('accessToken', data.accessToken);

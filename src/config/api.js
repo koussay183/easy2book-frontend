@@ -84,6 +84,12 @@ export const API_ENDPOINTS = {
   OMRA_ADMIN_OFFER: (id) => `${API_BASE_URL}/api/omra/admin/offers/${id}`,
   OMRA_ADMIN_RESERVATIONS: `${API_BASE_URL}/api/omra/admin/reservations`,
   OMRA_ADMIN_RESERVATION_STATUS: (id) => `${API_BASE_URL}/api/omra/admin/reservations/${id}/status`,
+
+  // TripAdvisor proxy endpoints (server-side proxy, API key never exposed to browser)
+  TRIPADVISOR_SEARCH:  `${API_BASE_URL}/api/tripadvisor/search`,
+  TRIPADVISOR_DETAILS: (locationId) => `${API_BASE_URL}/api/tripadvisor/${locationId}/details`,
+  TRIPADVISOR_PHOTOS:  (locationId) => `${API_BASE_URL}/api/tripadvisor/${locationId}/photos`,
+  TRIPADVISOR_REVIEWS: (locationId) => `${API_BASE_URL}/api/tripadvisor/${locationId}/reviews`,
 };
 
 // Helper function to get endpoint with dynamic parameters

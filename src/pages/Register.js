@@ -26,6 +26,7 @@ const Register = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   const validateForm = () => {
     const newErrors = {};
@@ -84,10 +85,14 @@ const Register = () => {
       const result = await register(userData);
 
       if (result.success) {
-        setMessage({ type: 'success', text: t.auth.registerSuccess });
-        setTimeout(() => {
-          navigate('/');
-        }, 2000);
+        if (result.verificationRequired) {
+          setRegistrationSuccess(true);
+        } else {
+          setMessage({ type: 'success', text: t.auth.registerSuccess });
+          setTimeout(() => {
+            navigate('/');
+          }, 2000);
+        }
       } else {
         setMessage({ type: 'error', text: result.message || t.auth.registerError });
       }
@@ -129,6 +134,32 @@ const Register = () => {
 
         {/* Scrollable Form Container - Custom Scrollbar */}
         <div className="flex-1 overflow-y-auto px-6 sm:px-12 py-6 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400">
+          {registrationSuccess ? (
+            <div className="w-full mt-12 sm:mt-16 flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Check size={36} className="text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                {language === 'fr' ? 'Vérifiez votre email !' : language === 'ar' ? '!تحقق من بريدك' : 'Check your email!'}
+              </h2>
+              <p className="text-gray-500 text-base mb-2 max-w-xs leading-relaxed">
+                {language === 'fr'
+                  ? 'Un lien de confirmation a été envoyé à votre adresse. Cliquez dessus pour activer votre compte.'
+                  : language === 'ar'
+                  ? 'تم إرسال رابط التأكيد إلى عنوانك. انقر عليه لتفعيل حسابك.'
+                  : 'A confirmation link has been sent to your email. Click it to activate your account.'}
+              </p>
+              <p className="text-gray-400 text-sm mb-8">
+                {language === 'fr' ? 'Vérifiez aussi vos spams.' : language === 'ar' ? 'راجع مجلد الرسائل غير المرغوب فيها.' : 'Check your spam folder too.'}
+              </p>
+              <Link
+                to="/login"
+                className="inline-block bg-primary-700 text-white py-3 px-8 rounded-xl font-semibold text-base hover:bg-primary-800 transition-all shadow-sm"
+              >
+                {language === 'fr' ? 'Se connecter' : language === 'ar' ? 'تسجيل الدخول' : 'Sign in'}
+              </Link>
+            </div>
+          ) : (
           <div className="w-full mt-12 sm:mt-16">
             {/* Logo/Header */}
             <div className={`mb-4 sm:mb-5 ${isRTL ? 'text-right flex flex-col items-end' : 'text-left flex flex-col items-start'}`}>
@@ -369,6 +400,7 @@ const Register = () => {
           </form>
           </div>
           </div>
+          )}
         </div>
       </div>
 

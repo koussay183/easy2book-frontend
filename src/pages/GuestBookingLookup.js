@@ -1,380 +1,431 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Search, Mail, FileText, Loader2, Calendar,
-  Hotel, DollarSign, Users, CheckCircle,
-  XCircle, AlertCircle, Clock, ArrowLeft
+import {
+  Search, Loader2, Calendar, DollarSign, Users,
+  CheckCircle2, XCircle, AlertCircle, Clock, ArrowLeft,
+  CreditCard, Building2, ChevronRight, RotateCcw, Phone, Mail
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { API_ENDPOINTS } from '../config/api';
+
+/* ══════════════════════════════════════════════════════════════════════ */
+
+const t = (fr, ar, en, language) =>
+  language === 'fr' ? fr : language === 'ar' ? ar : en;
+
+/* ── Status config ─────────────────────────────────────────────────── */
+const STATUS_CONFIG = {
+  pending: {
+    gradient: 'from-amber-500 to-orange-500',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
+    text: 'text-amber-700',
+    pill: 'bg-amber-100 text-amber-800',
+    Icon: Clock,
+    fr: 'En attente', ar: 'قيد الانتظار', en: 'Pending',
+  },
+  confirmed: {
+    gradient: 'from-green-500 to-emerald-600',
+    bg: 'bg-green-50',
+    border: 'border-green-200',
+    text: 'text-green-700',
+    pill: 'bg-green-100 text-green-800',
+    Icon: CheckCircle2,
+    fr: 'Confirmée', ar: 'مؤكد', en: 'Confirmed',
+  },
+  cancelled: {
+    gradient: 'from-red-500 to-rose-600',
+    bg: 'bg-red-50',
+    border: 'border-red-200',
+    text: 'text-red-700',
+    pill: 'bg-red-100 text-red-800',
+    Icon: XCircle,
+    fr: 'Annulée', ar: 'ملغى', en: 'Cancelled',
+  },
+  completed: {
+    gradient: 'from-primary-600 to-primary-700',
+    bg: 'bg-primary-50',
+    border: 'border-primary-200',
+    text: 'text-primary-700',
+    pill: 'bg-primary-100 text-primary-800',
+    Icon: CheckCircle2,
+    fr: 'Terminée', ar: 'مكتمل', en: 'Completed',
+  },
+};
+
+const PAYMENT_STATUS_CONFIG = {
+  pending: { pill: 'bg-orange-100 text-orange-700', fr: 'Paiement en attente', ar: 'في انتظار الدفع', en: 'Payment pending' },
+  paid:    { pill: 'bg-green-100 text-green-700',   fr: 'Payé',               ar: 'مدفوع',           en: 'Paid' },
+  failed:  { pill: 'bg-red-100 text-red-700',       fr: 'Paiement échoué',    ar: 'فشل الدفع',       en: 'Payment failed' },
+  refunded:{ pill: 'bg-blue-100 text-blue-700',     fr: 'Remboursé',          ar: 'مسترد',           en: 'Refunded' },
+};
+
+/* ══════════════════════════════════════════════════════════════════════ */
 
 const GuestBookingLookup = () => {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const isRTL = language === 'ar';
 
-  const [email, setEmail] = useState('');
-  const [bookingId, setBookingId] = useState('');
+  const [code, setCode]       = useState('');
   const [loading, setLoading] = useState(false);
   const [booking, setBooking] = useState(null);
-  const [error, setError] = useState('');
+  const [error, setError]     = useState('');
 
-  // Load saved guest booking info on mount
-  useEffect(() => {
-    const savedEmail = localStorage.getItem('guestBookingEmail');
-    const savedBookingId = localStorage.getItem('guestBookingId');
-    if (savedEmail) setEmail(savedEmail);
-    if (savedBookingId) setBookingId(savedBookingId);
-  }, []);
-
+  /* ── Lookup ────────────────────────────────────────────────────────── */
   const handleLookup = async (e) => {
     e.preventDefault();
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) return;
+
     setLoading(true);
     setError('');
     setBooking(null);
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.BOOKINGS}/guest/lookup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: email.toLowerCase().trim(),
-          bookingId: bookingId.trim()
-        })
-      });
+      const res  = await fetch(`${API_ENDPOINTS.BOOKINGS_DETAILS}/${trimmed}`);
+      const data = await res.json();
 
-      const data = await response.json();
-
-      if (data.status === 'success') {
+      if (data.status === 'success' && data.data?.booking) {
         setBooking(data.data.booking);
       } else {
-        setError(data.message || (language === 'fr' 
-          ? 'Réservation non trouvée. Vérifiez votre email et ID de réservation.'
-          : 'Booking not found. Please check your email and booking ID.'));
+        setError(
+          t('Réservation introuvable. Vérifiez le code et réessayez.',
+            'الحجز غير موجود. تحقق من الرمز وأعد المحاولة.',
+            'Booking not found. Check the code and try again.',
+            language)
+        );
       }
-    } catch (err) {
-      console.error('Error looking up booking:', err);
-      setError(language === 'fr' 
-        ? 'Erreur lors de la recherche de la réservation.'
-        : 'Error looking up booking.');
+    } catch {
+      setError(
+        t('Erreur de connexion. Veuillez réessayer.',
+          'خطأ في الاتصال. يرجى المحاولة لاحقاً.',
+          'Connection error. Please try again.',
+          language)
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      pending: { 
-        bg: 'bg-yellow-100', 
-        text: 'text-yellow-700', 
-        icon: Clock,
-        label: language === 'fr' ? 'En attente' : 'Pending' 
-      },
-      confirmed: { 
-        bg: 'bg-green-100', 
-        text: 'text-green-700', 
-        icon: CheckCircle,
-        label: language === 'fr' ? 'Confirmée' : 'Confirmed' 
-      },
-      cancelled: { 
-        bg: 'bg-red-100', 
-        text: 'text-red-700', 
-        icon: XCircle,
-        label: language === 'fr' ? 'Annulée' : 'Cancelled' 
-      },
-      completed: { 
-        bg: 'bg-blue-100', 
-        text: 'text-blue-700', 
-        icon: CheckCircle,
-        label: language === 'fr' ? 'Terminée' : 'Completed' 
-      }
-    };
+  /* ── Derived values ────────────────────────────────────────────────── */
+  const statusCfg  = booking ? (STATUS_CONFIG[booking.status]  || STATUS_CONFIG.pending)  : null;
+  const paymentCfg = booking ? (PAYMENT_STATUS_CONFIG[booking.paymentStatus] || PAYMENT_STATUS_CONFIG.pending) : null;
 
-    const config = statusConfig[status] || statusConfig.pending;
-    const Icon = config.icon;
-
-    return (
-      <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${config.bg} ${config.text} font-semibold`}>
-        <Icon size={18} />
-        <span>{config.label}</span>
-      </div>
-    );
+  const formatDate = (d) => {
+    if (!d) return '—';
+    try {
+      return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch { return d; }
   };
 
-  const getPaymentStatusBadge = (paymentStatus) => {
-    const paymentConfig = {
-      pending: { 
-        bg: 'bg-orange-100', 
-        text: 'text-orange-700',
-        label: language === 'fr' ? 'En attente' : 'Pending' 
-      },
-      paid: { 
-        bg: 'bg-green-100', 
-        text: 'text-green-700',
-        label: language === 'fr' ? 'Payé' : 'Paid' 
-      },
-      failed: { 
-        bg: 'bg-red-100', 
-        text: 'text-red-700',
-        label: language === 'fr' ? 'Échoué' : 'Failed' 
-      }
-    };
-
-    const config = paymentConfig[paymentStatus] || paymentConfig.pending;
-
-    return (
-      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${config.bg} ${config.text}`}>
-        {config.label}
-      </span>
+  const nights = (() => {
+    if (!booking?.hotelBooking?.CheckIn || !booking?.hotelBooking?.CheckOut) return null;
+    const n = Math.ceil(
+      (new Date(booking.hotelBooking.CheckOut) - new Date(booking.hotelBooking.CheckIn)) / 86400000
     );
-  };
+    return n > 0 ? n : null;
+  })();
 
+  /* ══════════════════════════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* Header */}
+    <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="max-w-lg mx-auto px-4 py-10">
+
+        {/* Back */}
         <button
           onClick={() => navigate('/')}
-          className={`flex items-center gap-2 text-gray-600 hover:text-primary-600 mb-6 transition-colors ${isRTL ? 'flex-row-reverse' : ''}`}
+          className={`flex items-center gap-2 text-gray-500 hover:text-primary-600 mb-8 transition-colors font-medium ${isRTL ? 'flex-row-reverse' : ''}`}
         >
-          <ArrowLeft size={20} className={isRTL ? 'rotate-180' : ''} />
-          <span className="font-semibold">
-            {language === 'fr' ? 'Retour' : language === 'ar' ? 'رجوع' : 'Back'}
-          </span>
+          <ArrowLeft size={18} className={isRTL ? 'rotate-180' : ''} />
+          <span>{t('Retour à l\'accueil', 'العودة للرئيسية', 'Back to home', language)}</span>
         </button>
 
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {language === 'fr' ? 'Rechercher votre réservation' : language === 'ar' ? 'البحث عن حجزك' : 'Lookup Your Booking'}
-          </h1>
-          <p className="text-gray-600">
-            {language === 'fr' 
-              ? 'Entrez votre email et ID de réservation pour vérifier le statut'
-              : language === 'ar' 
-              ? 'أدخل بريدك الإلكتروني ورقم الحجز للتحقق من الحالة'
-              : 'Enter your email and booking ID to check status'}
-          </p>
-        </div>
-
-        {/* Lookup Form */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <form onSubmit={handleLookup} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" dir={isRTL ? 'rtl' : 'ltr'}>
-                {language === 'fr' ? 'Adresse email' : language === 'ar' ? 'البريد الإلكتروني' : 'Email address'}
-                <span className="text-red-500 ml-1">*</span>
-              </label>
-              <div className="relative">
-                <Mail className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 text-gray-400`} size={20} />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder={language === 'fr' ? 'votre@email.com' : 'your@email.com'}
-                  className={`w-full ${isRTL ? 'pr-10 pl-3' : 'pl-10 pr-3'} py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent`}
-                  dir="ltr"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" dir={isRTL ? 'rtl' : 'ltr'}>
-                {language === 'fr' ? 'ID de réservation' : language === 'ar' ? 'رقم الحجز' : 'Booking ID'}
-                <span className="text-red-500 ml-1">*</span>
-              </label>
-              <div className="relative">
-                <FileText className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 text-gray-400`} size={20} />
-                <input
-                  type="text"
-                  value={bookingId}
-                  onChange={(e) => setBookingId(e.target.value)}
-                  required
-                  placeholder="65f4a2b3c1d2e3f4a5b6c7d8"
-                  className={`w-full ${isRTL ? 'pr-10 pl-3' : 'pl-10 pr-3'} py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent font-mono text-sm`}
-                  dir="ltr"
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3" dir={isRTL ? 'rtl' : 'ltr'}>
-                <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-primary-700 to-primary-800 hover:from-primary-800 hover:to-primary-900 text-white px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={20} className="animate-spin" />
-                  {language === 'fr' ? 'Recherche...' : language === 'ar' ? 'جاري البحث...' : 'Searching...'}
-                </>
-              ) : (
-                <>
-                  <Search size={20} />
-                  {language === 'fr' ? 'Rechercher' : language === 'ar' ? 'بحث' : 'Search'}
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-
-        {/* Booking Details */}
-        {booking && (
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-primary-700 to-primary-800 text-white p-6">
-              <h2 className="text-2xl font-bold mb-2" dir={isRTL ? 'rtl' : 'ltr'}>
-                {language === 'fr' ? 'Détails de la réservation' : language === 'ar' ? 'تفاصيل الحجز' : 'Booking Details'}
-              </h2>
-              <p className="text-primary-100 text-sm font-mono" dir="ltr">
-                ID: {booking._id}
-              </p>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Status */}
-              <div className="flex flex-wrap items-center gap-4" dir={isRTL ? 'rtl' : 'ltr'}>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">
-                    {language === 'fr' ? 'Statut' : language === 'ar' ? 'الحالة' : 'Status'}
-                  </p>
-                  {getStatusBadge(booking.status)}
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">
-                    {language === 'fr' ? 'Paiement' : language === 'ar' ? 'الدفع' : 'Payment'}
-                  </p>
-                  {getPaymentStatusBadge(booking.paymentStatus)}
-                </div>
-              </div>
-
-              {/* Hotel Information */}
-              {booking.hotelBooking && (
-                <div className="border-t border-gray-200 pt-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2" dir={isRTL ? 'rtl' : 'ltr'}>
-                    <Hotel size={20} className="text-primary-600" />
-                    {language === 'fr' ? 'Informations de l\'hôtel' : language === 'ar' ? 'معلومات الفندق' : 'Hotel Information'}
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4" dir={isRTL ? 'rtl' : 'ltr'}>
-                    <div className="flex items-start gap-3">
-                      <Calendar className="text-gray-400 flex-shrink-0 mt-1" size={18} />
-                      <div>
-                        <p className="text-sm text-gray-500">
-                          {language === 'fr' ? 'Dates' : language === 'ar' ? 'التواريخ' : 'Dates'}
-                        </p>
-                        <p className="font-semibold text-gray-900" dir="ltr">
-                          {booking.hotelBooking.CheckIn} → {booking.hotelBooking.CheckOut}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                      <DollarSign className="text-gray-400 flex-shrink-0 mt-1" size={18} />
-                      <div>
-                        <p className="text-sm text-gray-500">
-                          {language === 'fr' ? 'Prix total' : language === 'ar' ? 'السعر الإجمالي' : 'Total Price'}
-                        </p>
-                        <p className="font-semibold text-gray-900 text-lg">
-                          {booking.totalPrice} TND
-                        </p>
-                      </div>
-                    </div>
-
-                    {booking.paymentMethod && (
-                      <div className="flex items-start gap-3">
-                        <DollarSign className="text-gray-400 flex-shrink-0 mt-1" size={18} />
-                        <div>
-                          <p className="text-sm text-gray-500">
-                            {language === 'fr' ? 'Méthode de paiement' : language === 'ar' ? 'طريقة الدفع' : 'Payment Method'}
-                          </p>
-                          <p className="font-semibold text-gray-900">
-                            {booking.paymentMethod === 'online' 
-                              ? (language === 'fr' ? 'Paiement en ligne' : 'Online Payment')
-                              : (language === 'fr' ? 'Paiement à l\'agence' : 'Pay at Agency')}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Guest Information */}
-              {booking.guestInfo && (
-                <div className="border-t border-gray-200 pt-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2" dir={isRTL ? 'rtl' : 'ltr'}>
-                    <Users size={20} className="text-primary-600" />
-                    {language === 'fr' ? 'Informations du client' : language === 'ar' ? 'معلومات العميل' : 'Guest Information'}
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4" dir={isRTL ? 'rtl' : 'ltr'}>
-                    <div>
-                      <p className="text-sm text-gray-500">
-                        {language === 'fr' ? 'Nom' : language === 'ar' ? 'الاسم' : 'Name'}
-                      </p>
-                      <p className="font-semibold text-gray-900">{booking.guestInfo.name}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">
-                        {language === 'fr' ? 'Email' : language === 'ar' ? 'البريد الإلكتروني' : 'Email'}
-                      </p>
-                      <p className="font-semibold text-gray-900" dir="ltr">{booking.guestInfo.email}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">
-                        {language === 'fr' ? 'Téléphone' : language === 'ar' ? 'الهاتف' : 'Phone'}
-                      </p>
-                      <p className="font-semibold text-gray-900" dir="ltr">{booking.guestInfo.phone}</p>
-                    </div>
-                    {booking.guestInfo.country && (
-                      <div>
-                        <p className="text-sm text-gray-500">
-                          {language === 'fr' ? 'Pays' : language === 'ar' ? 'البلد' : 'Country'}
-                        </p>
-                        <p className="font-semibold text-gray-900">{booking.guestInfo.country}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Important Notes */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4" dir={isRTL ? 'rtl' : 'ltr'}>
-                <p className="text-sm text-blue-900">
-                  {language === 'fr' 
-                    ? '💡 Conservez votre ID de réservation pour future référence. Vous recevrez également un email de confirmation.'
-                    : language === 'ar'
-                    ? '💡 احتفظ برقم الحجز للرجوع إليه مستقبلاً. سوف تتلقى أيضاً بريد إلكتروني للتأكيد.'
-                    : '💡 Keep your booking ID for future reference. You will also receive a confirmation email.'}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Help Section */}
+        {/* ── Header ──────────────────────────────────────────────────── */}
         {!booking && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center" dir={isRTL ? 'rtl' : 'ltr'}>
-            <h3 className="font-bold text-blue-900 mb-2">
-              {language === 'fr' ? 'Besoin d\'aide?' : language === 'ar' ? 'تحتاج مساعدة؟' : 'Need help?'}
-            </h3>
-            <p className="text-sm text-blue-800">
-              {language === 'fr' 
-                ? 'Si vous avez des questions concernant votre réservation, contactez-nous.'
-                : language === 'ar'
-                ? 'إذا كان لديك أسئلة حول حجزك، اتصل بنا.'
-                : 'If you have questions about your booking, contact us.'}
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-200">
+              <Search size={28} className="text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              {t('Retrouvez votre réservation', 'ابحث عن حجزك', 'Find your booking', language)}
+            </h1>
+            <p className="text-gray-500 text-sm leading-relaxed">
+              {t(
+                'Entrez le code de confirmation reçu après votre réservation',
+                'أدخل رمز التأكيد الذي تلقيته بعد الحجز',
+                'Enter the confirmation code you received after booking',
+                language
+              )}
             </p>
           </div>
         )}
+
+        {/* ── Input Card ──────────────────────────────────────────────── */}
+        {!booking && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+            <form onSubmit={handleLookup} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  {t('Code de confirmation', 'رمز التأكيد', 'Confirmation code', language)}
+                </label>
+                <input
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  placeholder="BK-20260221-A7G9"
+                  required
+                  autoFocus
+                  spellCheck={false}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-400 font-mono text-base tracking-widest text-center transition-colors"
+                  dir="ltr"
+                />
+                <p className="text-xs text-gray-400 mt-1.5 text-center">
+                  {t(
+                    'Format : BK-AAAAAAAA-XXXX (indiqué dans votre email de confirmation)',
+                    'الصيغة: BK-AAAAAAAA-XXXX (موجود في بريد التأكيد)',
+                    'Format: BK-AAAAAAAA-XXXX (shown in your confirmation email)',
+                    language
+                  )}
+                </p>
+              </div>
+
+              {error && (
+                <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+                  <AlertCircle size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || !code.trim()}
+                className="w-full bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white py-3 px-6 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <><Loader2 size={18} className="animate-spin" />{t('Recherche...', 'جاري البحث...', 'Searching...', language)}</>
+                ) : (
+                  <><Search size={18} />{t('Trouver ma réservation', 'ابحث عن حجزي', 'Find my booking', language)}</>
+                )}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* ── Result Card ─────────────────────────────────────────────── */}
+        {booking && statusCfg && (
+          <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+
+            {/* Status Hero Banner */}
+            <div className={`bg-gradient-to-r ${statusCfg.gradient} px-6 py-6 text-white`}>
+              <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <statusCfg.Icon size={30} className="text-white" />
+                </div>
+                <div className={isRTL ? 'text-right' : ''}>
+                  <p className="text-white/70 text-xs font-semibold uppercase tracking-wider mb-0.5">
+                    {t('Statut de votre réservation', 'حالة حجزك', 'Booking status', language)}
+                  </p>
+                  <h2 className="text-2xl font-black text-white leading-tight">
+                    {t(statusCfg.fr, statusCfg.ar, statusCfg.en, language)}
+                  </h2>
+                  <p className="text-white/60 text-xs font-mono mt-1" dir="ltr">
+                    {booking.confirmationCode}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment status pill */}
+            {paymentCfg && (
+              <div className={`px-6 py-3 border-b border-gray-100 flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <CreditCard size={14} className="text-gray-400 flex-shrink-0" />
+                <span className={`text-xs font-bold px-3 py-1 rounded-full ${paymentCfg.pill}`}>
+                  {t(paymentCfg.fr, paymentCfg.ar, paymentCfg.en, language)}
+                </span>
+                {booking.paymentMethod && (
+                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                    {booking.paymentMethod === 'online'
+                      ? <><CreditCard size={12} /> {t('En ligne', 'عبر الإنترنت', 'Online', language)}</>
+                      : <><Building2 size={12} /> {t('À l\'agence', 'في الوكالة', 'At agency', language)}</>
+                    }
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-5">
+
+              {/* Guest greeting */}
+              {(booking.guestInfo?.name || booking.contactEmail) && (
+                <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0">
+                    <Users size={18} className="text-primary-600" />
+                  </div>
+                  <div className={isRTL ? 'text-right' : ''}>
+                    <p className="text-xs text-gray-400">
+                      {t('Titulaire', 'صاحب الحجز', 'Booking holder', language)}
+                    </p>
+                    <p className="font-bold text-gray-900">
+                      {booking.guestInfo?.name || booking.contactEmail}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Dates */}
+              {(booking.hotelBooking?.CheckIn || booking.hotelBooking?.CheckOut) && (
+                <div className={`flex items-start gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Calendar size={18} className="text-primary-600" />
+                  </div>
+                  <div className={isRTL ? 'text-right' : ''}>
+                    <p className="text-xs text-gray-400 mb-1">
+                      {t('Dates du séjour', 'تواريخ الإقامة', 'Stay dates', language)}
+                    </p>
+                    <div className={`flex items-center gap-2 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <span className="font-bold text-gray-900 text-sm">
+                        {formatDate(booking.hotelBooking.CheckIn)}
+                      </span>
+                      <ChevronRight size={14} className={`text-gray-400 flex-shrink-0 ${isRTL ? 'rotate-180' : ''}`} />
+                      <span className="font-bold text-gray-900 text-sm">
+                        {formatDate(booking.hotelBooking.CheckOut)}
+                      </span>
+                      {nights && (
+                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                          {nights} {t(nights > 1 ? 'nuits' : 'nuit', nights > 1 ? 'ليالي' : 'ليلة', nights > 1 ? 'nights' : 'night', language)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Price */}
+              {booking.totalPrice && (
+                <div className={`flex items-start gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <DollarSign size={18} className="text-primary-600" />
+                  </div>
+                  <div className={isRTL ? 'text-right' : ''}>
+                    <p className="text-xs text-gray-400 mb-0.5">
+                      {t('Prix total', 'السعر الإجمالي', 'Total price', language)}
+                    </p>
+                    <p className="text-2xl font-black text-gray-900 leading-none">
+                      {parseFloat(booking.totalPrice).toLocaleString('fr-TN')}
+                      <span className="text-base font-semibold text-primary-600 ml-1">TND</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Contact info (masked) */}
+              {(booking.guestInfo?.email || booking.contactEmail || booking.guestInfo?.phone || booking.contactPhone) && (
+                <div className={`pt-4 border-t border-gray-100 space-y-2 ${isRTL ? 'text-right' : ''}`}>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    {t('Contact', 'معلومات الاتصال', 'Contact', language)}
+                  </p>
+                  {(booking.guestInfo?.email || booking.contactEmail) && (
+                    <div className={`flex items-center gap-2 text-sm text-gray-600 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <Mail size={14} className="text-gray-400 flex-shrink-0" />
+                      <span dir="ltr">{booking.guestInfo?.email || booking.contactEmail}</span>
+                    </div>
+                  )}
+                  {(booking.guestInfo?.phone || booking.contactPhone) && (
+                    <div className={`flex items-center gap-2 text-sm text-gray-600 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <Phone size={14} className="text-gray-400 flex-shrink-0" />
+                      <span dir="ltr">{booking.guestInfo?.phone || booking.contactPhone}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Status-specific message */}
+              {booking.status === 'pending' && (
+                <div className={`flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
+                  <Clock size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-800">
+                    {t(
+                      'Votre réservation est en cours de traitement. Notre équipe vous contactera sous 24h.',
+                      'حجزك قيد المعالجة. سيتصل بك فريقنا خلال 24 ساعة.',
+                      'Your booking is being processed. Our team will contact you within 24 hours.',
+                      language
+                    )}
+                  </p>
+                </div>
+              )}
+              {booking.status === 'confirmed' && (
+                <div className={`flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
+                  <CheckCircle2 size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-green-800">
+                    {t(
+                      'Votre réservation est confirmée. Bon séjour !',
+                      'تم تأكيد حجزك. استمتع بإقامتك!',
+                      'Your booking is confirmed. Enjoy your stay!',
+                      language
+                    )}
+                  </p>
+                </div>
+              )}
+              {booking.status === 'cancelled' && (
+                <div className={`flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
+                  <XCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700">
+                    {t(
+                      'Cette réservation a été annulée. Contactez-nous pour plus d\'informations.',
+                      'تم إلغاء هذا الحجز. تواصل معنا لمزيد من المعلومات.',
+                      'This booking has been cancelled. Contact us for more information.',
+                      language
+                    )}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Help footer */}
+            <div className={`px-6 py-4 bg-primary-50 border-t border-primary-100 ${isRTL ? 'text-right' : ''}`}>
+              <p className="text-xs text-primary-700 font-semibold mb-0.5">
+                {t('Des questions ?', 'هل لديك أسئلة؟', 'Have questions?', language)}
+              </p>
+              <p className="text-xs text-primary-600">
+                {t(
+                  'Contactez notre agence en mentionnant votre code de réservation.',
+                  'تواصل مع وكالتنا مع ذكر رمز الحجز.',
+                  'Contact our agency with your booking code.',
+                  language
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Search again */}
+        {booking && (
+          <button
+            onClick={() => { setBooking(null); setCode(''); setError(''); }}
+            className={`mt-4 w-full flex items-center justify-center gap-2 py-3 border-2 border-gray-200 rounded-xl text-gray-600 font-semibold hover:bg-white hover:border-gray-300 transition-all text-sm ${isRTL ? 'flex-row-reverse' : ''}`}
+          >
+            <RotateCcw size={15} />
+            {t('Rechercher un autre code', 'البحث برمز آخر', 'Search another code', language)}
+          </button>
+        )}
+
+        {/* Help tip (when no result yet) */}
+        {!booking && !error && (
+          <div className={`flex items-start gap-3 bg-primary-50 border border-primary-100 rounded-xl p-4 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
+            <AlertCircle size={16} className="text-primary-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-primary-700 leading-relaxed">
+              {t(
+                'Votre code de confirmation se trouve dans l\'email de confirmation reçu après votre réservation.',
+                'يمكنك إيجاد رمز التأكيد في البريد الإلكتروني الذي تلقيته بعد الحجز.',
+                'Your confirmation code can be found in the confirmation email you received after booking.',
+                language
+              )}
+            </p>
+          </div>
+        )}
+
       </div>
     </div>
   );

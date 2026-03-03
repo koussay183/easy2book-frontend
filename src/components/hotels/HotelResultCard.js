@@ -1,321 +1,373 @@
-import React from 'react';
-import { MapPin, Star, ChevronRight, Wifi, Car, Utensils, Waves, Coffee, Wind, Dumbbell, Droplets, Users, Palmtree, Baby, Heart, TreePine, PartyPopper, Briefcase, Home, Sparkles, TrendingUp, Tag } from 'lucide-react';
+import React, { useState } from 'react';
+import { MapPin, Star, ChevronRight, Utensils, ThumbsUp, Clock, BadgePercent, Flame } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
+import useTripAdvisor from '../../hooks/useTripAdvisor';
+import tripadvisorLogo from '../../assets/images/tripadvasor_logo.png';
 
+/* ── Number formatter ─────────────────────────────────────────────────── */
+const fmt = (v) =>
+  parseFloat(v).toLocaleString('fr-TN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+/* ══════════════════════════════════════════════════════════════════════ */
 const HotelResultCard = ({ hotel, checkIn, checkOut, roomsConfig }) => {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const isRTL = language === 'ar';
+  const [imgError, setImgError] = useState(false);
 
-  // Calculate number of nights
-  const calculateNights = () => {
+  /* ── TripAdvisor data — richer query: name + city + address for better matching ── */
+  const taQuery = [
+    hotel.Name,
+    hotel.City?.Name,
+    hotel.City?.Country?.Name !== 'Tunisie' ? hotel.City?.Country?.Name : null,
+  ].filter(Boolean).join(' ');
+  const { taData, loading: taLoading } = useTripAdvisor(taQuery);
+
+  /* ── Nights ── */
+  const nights = (() => {
     if (!checkIn || !checkOut) return 1;
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
-    const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    return nights > 0 ? nights : 1;
-  };
+    const n = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
+    return n > 0 ? n : 1;
+  })();
 
-  const numberOfNights = calculateNights();
+  /* ── Stars ── */
+  const stars = hotel.Category?.Star || 0;
 
-  const renderStars = (count) => {
-    return Array.from({ length: count }, (_, i) => (
-      <Star key={i} size={16} className="fill-yellow-400 text-yellow-400" />
-    ));
-  };
-
-  const getFacilityIcon = (facilityName) => {
-    const name = facilityName.toLowerCase();
-    if (name.includes('wifi') || name.includes('internet')) return <Wifi size={14} />;
-    if (name.includes('parking') || name.includes('car')) return <Car size={14} />;
-    if (name.includes('restaurant') || name.includes('dining')) return <Utensils size={14} />;
-    if (name.includes('pool') || name.includes('swimming')) return <Waves size={14} />;
-    if (name.includes('breakfast') || name.includes('coffee')) return <Coffee size={14} />;
-    if (name.includes('ac') || name.includes('air') || name.includes('conditioning')) return <Wind size={14} />;
-    if (name.includes('gym') || name.includes('fitness')) return <Dumbbell size={14} />;
-    if (name.includes('spa') || name.includes('wellness')) return <Droplets size={14} />;
-    if (name.includes('room') || name.includes('service')) return <Users size={14} />;
-    return null;
-  };
-
-  const getThemeIcon = (themeName) => {
-    const name = themeName.toLowerCase();
-    if (name.includes('beach') || name.includes('plage')) return <Palmtree size={14} />;
-    if (name.includes('family') || name.includes('famille') || name.includes('kids')) return <Baby size={14} />;
-    if (name.includes('romantic') || name.includes('honeymoon') || name.includes('couple')) return <Heart size={14} />;
-    if (name.includes('nature') || name.includes('mountain')) return <TreePine size={14} />;
-    if (name.includes('party') || name.includes('nightlife')) return <PartyPopper size={14} />;
-    if (name.includes('business') || name.includes('work')) return <Briefcase size={14} />;
-    if (name.includes('relax') || name.includes('quiet')) return <Home size={14} />;
-    return null;
-  };
-
-  // Extract pricing information from SearchData
-  const getMinimumPrice = () => {
-    if (!hotel.SearchData?.Price?.Boarding) return null;
-    
-    let minPrice = Infinity;
-    hotel.SearchData.Price.Boarding.forEach(boarding => {
-      boarding.Pax?.forEach(pax => {
-        pax.Rooms?.forEach(room => {
-          const price = parseFloat(room.Price || room.BasePrice || 0);
-          if (price < minPrice) {
-            minPrice = price;
-          }
+  /* ── Pricing ── */
+  const pricing = (() => {
+    const boardings = hotel.SearchData?.Price?.Boarding;
+    if (!boardings) return null;
+    let minPrice = Infinity, pairedBase = Infinity;
+    boardings.forEach(b => {
+      b.Pax?.forEach(p => {
+        p.Rooms?.forEach(r => {
+          const pr = parseFloat(r.Price   || 0);
+          const ba = parseFloat(r.BasePrice || r.Price || 0);
+          if (pr > 0 && pr < minPrice) { minPrice = pr; pairedBase = ba; }
         });
       });
     });
-    
-    return minPrice !== Infinity ? minPrice : null;
-  };
+    if (minPrice === Infinity) return null;
+    const savings     = pairedBase > minPrice ? pairedBase - minPrice : 0;
+    const discountPct = pairedBase > minPrice ? Math.round((savings / pairedBase) * 100) : 0;
+    return {
+      price: minPrice,
+      basePrice: pairedBase,
+      currency: hotel.SearchData?.Currency || 'TND',
+      discountPct,
+      savings,
+    };
+  })();
 
-  // Get available boarding options
-  const getBoardingOptions = () => {
-    if (!hotel.SearchData?.Price?.Boarding) return [];
-    return hotel.SearchData.Price.Boarding.map(b => ({
-      id: b.Id,
-      code: b.Code,
-      name: b.Name
-    }));
-  };
+  /* ── Boarding options (unique, max 4) ── */
+  const boardings = (() => {
+    const seen = new Set();
+    return (hotel.SearchData?.Price?.Boarding || []).filter(b => {
+      if (seen.has(b.Code)) return false;
+      seen.add(b.Code);
+      return true;
+    }).slice(0, 4);
+  })();
 
-  // Get currency
-  const getCurrency = () => {
-    return hotel.SearchData?.Currency || 'TND';
-  };
+  /* ── Recommended ── */
+  const recommended = hotel.SearchData?.Recommended || 0;
 
-  const minimumPrice = getMinimumPrice();
-  const boardingOptions = getBoardingOptions();
-  const currency = getCurrency();
+  /* ── Promo ── */
+  const hasDiscount    = pricing && pricing.discountPct >= 5;
+  const hasBigDiscount = pricing && pricing.discountPct >= 15;
+  const promoTitle     = hotel.SearchData?.Promotion?.Title || null;
 
-  // Check if this is a new or special hotel
-  const isTopSale = hotel.IsTopSale || false;
-  const hasPromo = hotel.HasPromo || (minimumPrice != null && minimumPrice < 2000);
+  /* ── Cancellation ── */
+  const hasCancellationPolicy = (hotel.SearchData?.Price?.Boarding || []).some(b =>
+    b.Pax?.some(p => p.Rooms?.some(r => r.CancellationDeadline || r.CancellationPolicy))
+  );
 
-  // API already returns the total price for the entire stay, no need to multiply
-  const totalPrice = minimumPrice;
+  /* ── Facilities (max 4) ── */
+  const facilities = (hotel.Facilities || []).slice(0, 4);
 
+  /* ── Navigation ── */
   const handleViewDetails = () => {
     const params = new URLSearchParams();
-    if (checkIn) params.set('checkIn', checkIn);
+    if (checkIn)  params.set('checkIn',  checkIn);
     if (checkOut) params.set('checkOut', checkOut);
-    if (roomsConfig && roomsConfig.length > 0) {
-      params.set('roomsConfig', encodeURIComponent(JSON.stringify(roomsConfig)));
-    } else {
-      // Fallback to default
-      params.set('roomsConfig', encodeURIComponent(JSON.stringify([{ adults: 2, children: [] }])));
-    }
+    params.set('roomsConfig', encodeURIComponent(
+      JSON.stringify(roomsConfig || [{ adults: 2, children: [] }])
+    ));
     navigate(`/hotel/${hotel.Id}?${params.toString()}`);
   };
 
+  /* ── Location text ── */
+  const location = hotel.Adress
+    ? hotel.Adress
+    : [hotel.City?.Name, hotel.City?.Country?.Name].filter(Boolean).join(', ');
+
+  /* ══ Render ════════════════════════════════════════════════════════ */
   return (
-    <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 mb-6 group">
-      <div className="flex flex-col lg:flex-row">
-        {/* Image Section */}
-        <div className="lg:w-[300px] h-[240px] lg:h-auto overflow-hidden relative flex-shrink-0">
+    <div
+      onClick={handleViewDetails}
+      className="w-full bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 overflow-hidden cursor-pointer group"
+    >
+      {/* ── Promo banner (top strip) ── */}
+      {(hasBigDiscount || promoTitle) && (
+        <div className={`flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm font-semibold ${isRTL ? 'flex-row-reverse' : ''}`}>
+          <Flame size={15} className="flex-shrink-0" />
+          <span>
+            {promoTitle
+              ? promoTitle
+              : language === 'fr'
+              ? `Offre limitée — ${pricing.discountPct}% de réduction`
+              : language === 'ar'
+              ? `عرض محدود — خصم ${pricing.discountPct}٪`
+              : `Limited deal — ${pricing.discountPct}% off`}
+          </span>
+        </div>
+      )}
+
+      <div className={`w-full flex flex-col md:flex-row ${isRTL ? 'md:flex-row-reverse' : ''}`}>
+
+        {/* ── Image ── */}
+        {/* h-44 on mobile (compact), auto on desktop (fills card height) */}
+        <div className="w-full md:w-60 lg:w-72 h-44 md:h-auto flex-shrink-0 relative overflow-hidden">
           <img
-            src={hotel.Image || 'https://via.placeholder.com/400x300?text=Hotel'}
+            src={imgError
+              ? 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=70'
+              : (hotel.Image || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=70')}
             alt={hotel.Name}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-            onError={(e) => {
-              e.target.src = 'https://via.placeholder.com/400x300?text=Hotel';
-            }}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={() => setImgError(true)}
           />
-          
-          {/* Badges Overlay */}
-          <div className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} flex flex-col gap-2`}>
-            {hotel.Category && (
-              <span className="bg-gradient-to-r from-primary-700 to-primary-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg backdrop-blur-sm">
-                <Sparkles size={14} />
-                {hotel.Category.Name || 'Luxe'}
-              </span>
-            )}
-            {isTopSale && (
-              <span className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg">
-                <TrendingUp size={14} />
-                **TOP VENTES
-              </span>
-            )}
-            {hasPromo && (
-              <span className="bg-gradient-to-r from-red-500 via-red-600 to-pink-600 text-white px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 shadow-lg animate-pulse">
-                <Tag size={14} className="animate-bounce" />
-                PROMO
-              </span>
-            )}
-          </div>
 
-          {/* Free Cancellation Badge */}
-          <div className={`absolute top-3 ${isRTL ? 'left-3' : 'right-3'}`}>
-            <span className="bg-white/95 backdrop-blur-sm text-primary-700 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border border-primary-200">
-              ✓ {language === 'fr' ? 'Annulation gratuite' : language === 'ar' ? 'إلغاء مجاني' : 'Free Cancellation'}
-            </span>
-          </div>
+          {/* Discount badge */}
+          {hasDiscount && (
+            <div className={`absolute top-2 md:top-3 ${isRTL ? 'right-2 md:right-3' : 'left-2 md:left-3'}`}>
+              <span className="inline-flex items-center gap-1 md:gap-1.5 bg-red-500 text-white text-xs md:text-sm font-bold px-2 md:px-3 py-1 md:py-1.5 rounded-xl shadow-md">
+                <BadgePercent size={12} /> -{pricing.discountPct}%
+              </span>
+            </div>
+          )}
 
-          {/* Price Overlay - Mobile Only */}
-          {minimumPrice && (
-            <div className={`lg:hidden absolute bottom-3 ${isRTL ? 'left-3' : 'right-3'} bg-white/95 backdrop-blur-sm px-3 py-2 rounded-xl shadow-lg border-2 border-primary-200`}>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-primary-700">
-                  {totalPrice.toFixed(2)}
+          {/* Cancellable */}
+          {hasCancellationPolicy && (
+            <div className={`absolute bottom-2 md:bottom-3 ${isRTL ? 'right-2 md:right-3' : 'left-2 md:left-3'}`}>
+              <span className="inline-flex items-center gap-1 bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 md:px-2.5 md:py-1.5 rounded-lg">
+                <Clock size={10} />
+                <span className="hidden sm:inline">
+                  {language === 'fr' ? 'Annulation gratuite' : language === 'ar' ? 'إلغاء مجاني' : 'Free cancellation'}
                 </span>
-                <span className="text-sm font-bold text-primary-600">
-                  {currency}
+                <span className="sm:hidden">
+                  {language === 'fr' ? 'Annulable' : language === 'ar' ? 'قابل للإلغاء' : 'Cancellable'}
                 </span>
-              </div>
-              <p className="text-[10px] text-gray-600 font-medium">
-                {numberOfNights} {language === 'fr' ? (numberOfNights > 1 ? 'nuits' : 'nuit') : language === 'ar' ? 'ليالي' : (numberOfNights > 1 ? 'nights' : 'night')}
-              </p>
+              </span>
             </div>
           )}
         </div>
 
-        {/* Content Section */}
-        <div className="flex-1 flex flex-col" dir={isRTL ? 'rtl' : 'ltr'}>
-          {/* Header Section */}
-          <div className={`p-4 pb-3 border-b border-gray-100 ${isRTL ? 'text-right' : 'text-left'}`}>
-            <div className={`flex items-start justify-between gap-3 mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <h3 className="text-xl lg:text-2xl font-bold text-gray-900 hover:text-primary-700 transition-colors leading-tight flex-1">
+        {/* ── Body ── */}
+        <div className={`flex-1 flex flex-col md:flex-row min-w-0 ${isRTL ? 'md:flex-row-reverse' : ''}`}>
+
+          {/* Left: hotel info */}
+          <div
+            className={`flex-1 p-4 md:p-5 flex flex-col gap-2 md:gap-3 min-w-0 ${isRTL ? 'text-right' : 'text-left'}`}
+            dir={isRTL ? 'rtl' : 'ltr'}
+          >
+            {/* Name + Stars */}
+            <div>
+              <h3 className="text-base md:text-xl font-bold text-gray-900 leading-tight group-hover:text-primary-700 transition-colors line-clamp-2">
                 {hotel.Name}
               </h3>
-              {hotel.Category && (
-                <div className="flex items-center gap-0.5 flex-shrink-0">
-                  {renderStars(hotel.Category.Star)}
+              {stars > 0 && (
+                <div className={`flex items-center gap-0.5 md:gap-1 mt-1.5 md:mt-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  {[...Array(stars)].map((_, i) => (
+                    <Star key={i} size={13} className="fill-amber-400 text-amber-400" />
+                  ))}
+                  {[...Array(5 - stars)].map((_, i) => (
+                    <Star key={`e${i}`} size={13} className="fill-gray-200 text-gray-200" />
+                  ))}
+                  <span className="hidden md:inline text-sm text-gray-400 ml-1.5 font-medium">{stars} étoiles</span>
+                  <span className="md:hidden text-xs text-gray-400 ml-1 font-medium">{stars}★</span>
                 </div>
               )}
             </div>
 
-            {/* Location */}
-            {hotel.City && (
-              <div className={`flex items-center gap-2 text-gray-600 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <MapPin size={14} className="text-primary-600 flex-shrink-0" />
-                <span className="text-sm">
-                  {hotel.Adress ? `${hotel.Adress}, ` : ''}{hotel.City.Name}, {hotel.City.Country?.Name}
-                </span>
+            {/* TripAdvisor rating — own row, sibling of Name+Stars */}
+            {taLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-24 rounded-lg bg-gray-200 animate-pulse" />
               </div>
-            )}
-          </div>
-
-          {/* Main Content Section */}
-          <div className="p-4 flex-1 space-y-3">
-            {/* Themes */}
-            {hotel.SearchData?.Themes && hotel.SearchData.Themes.length > 0 && (
-              <div>
-                <h4 className={`text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ${isRTL ? 'text-right' : 'text-left'}`}>
-                  {language === 'fr' ? 'Thèmes' : language === 'ar' ? 'المواضيع' : 'Themes'}
-                </h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {hotel.SearchData.Themes.slice(0, 4).map((theme, index) => {
-                    const themeName = theme.Name || theme;
-                    const icon = getThemeIcon(themeName);
-                    return (
-                      <span
-                        key={index}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-semibold rounded-lg border border-primary-200 hover:bg-primary-100 transition-colors"
-                      >
-                        {icon && <span className="text-primary-600">{icon}</span>}
-                        {themeName}
+            ) : taData?.rating ? (
+              <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <div className="flex items-center gap-1.5 bg-[#34E0A1]/10 border border-[#34E0A1]/30 rounded-lg px-2 py-0.5 md:px-2.5 md:py-1">
+                  {taData.ratingImageUrl
+                    ? <img src={taData.ratingImageUrl} alt={`${taData.rating}`} className="h-4 md:h-5" />
+                    : <span className="text-xs font-bold text-gray-800">{taData.rating.toFixed(1)}</span>
+                  }
+                  {taData.numReviews && (
+                    <span className="text-xs text-gray-400">
+                      · {taData.numReviews.toLocaleString()}{' '}
+                      <span className="hidden sm:inline">
+                        {language === 'fr' ? 'avis' : language === 'ar' ? 'تقييم' : 'reviews'}
                       </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Boarding Options */}
-            {boardingOptions.length > 0 && (
-              <div>
-                <h4 className={`text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5 ${isRTL ? 'text-right flex-row-reverse' : 'text-left'}`}>
-                  <Utensils size={12} />
-                  {language === 'fr' ? 'Formules repas' : language === 'ar' ? 'أنظمة الوجبات' : 'Meal Plans'}
-                </h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {boardingOptions.map(option => (
-                    <div
-                      key={option.id}
-                      className="inline-flex items-start gap-2 px-2.5 py-1.5 bg-gradient-to-br from-primary-50 to-secondary-50 text-primary-800 text-xs font-bold rounded-lg border-2 border-primary-200 hover:border-primary-300 transition-all"
-                    >
-                      <div className="flex flex-col leading-tight">
-                        <span className="text-primary-900 font-extrabold">{option.code}</span>
-                        {option.name && <span className="text-[10px] text-primary-700 font-medium">{option.name}</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Facilities */}
-            {hotel.SearchData?.Facilities && hotel.SearchData.Facilities.length > 0 && (
-              <div>
-                <h4 className={`text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ${isRTL ? 'text-right' : 'text-left'}`}>
-                  {language === 'fr' ? 'Équipements' : language === 'ar' ? 'المرافق' : 'Facilities'}
-                </h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {hotel.SearchData.Facilities.slice(0, 8).map((facility, index) => {
-                    const icon = getFacilityIcon(facility.Title || facility);
-                    const facilityName = facility.Title || facility;
-                    return (
-                      <span
-                        key={index}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-gray-700 text-xs font-medium rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 transition-all"
-                      >
-                        {icon && <span className="text-primary-600">{icon}</span>}
-                        {facilityName}
-                      </span>
-                    );
-                  })}
-                  {hotel.SearchData.Facilities.length > 8 && (
-                    <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg border border-gray-300">
-                      +{hotel.SearchData.Facilities.length - 8}
                     </span>
                   )}
                 </div>
+                {taData.webUrl && (
+                  <a
+                    href={taData.webUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="hidden sm:inline text-[13px] text-[#34E0A1] hover:underline font-medium"
+                  >
+                    TripAdvisor →
+                  </a>
+                )}
+              </div>
+            ) : null}
+
+            {/* Location */}
+            {location && (
+              <div className={`flex items-center gap-1.5 md:gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <MapPin size={13} className="text-gray-400 flex-shrink-0" />
+                <span className="text-sm md:text-base text-gray-600 truncate">{location}</span>
+              </div>
+            )}
+
+            {/* Boarding */}
+            {boardings.length > 0 && (
+              <div className={`flex items-center gap-1.5 md:gap-2 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <Utensils size={13} className="text-gray-400 flex-shrink-0" />
+                {boardings.map(b => (
+                  <span
+                    key={b.Id}
+                    title={b.Name}
+                    className="text-xs md:text-sm font-semibold text-gray-700 bg-gray-100 border border-gray-200 px-2 md:px-3 py-0.5 md:py-1 rounded-lg"
+                  >
+                    {b.Code}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Facilities — hidden on mobile to save space */}
+            {facilities.length > 0 && (
+              <div className={`hidden md:flex flex-wrap gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                {facilities.map((f, i) => (
+                  <span
+                    key={i}
+                    className="text-sm text-gray-500 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-lg"
+                  >
+                    {f.Title}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Recommended — hidden on mobile */}
+            {recommended >= 1 && (
+              <div className={`hidden md:flex items-center gap-1.5 text-primary-600 text-sm font-semibold ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <ThumbsUp size={14} />
+                {language === 'fr' ? 'Recommandé' : language === 'ar' ? 'موصى به' : 'Recommended'}
               </div>
             )}
           </div>
 
-          {/* Footer Section */}
-          <div className="p-4 bg-gradient-to-br from-gray-50 to-white border-t-2 border-gray-100 mt-auto">
-            <div className={`flex flex-col lg:flex-row items-stretch lg:items-end justify-between gap-4 ${isRTL ? 'lg:flex-row-reverse' : ''}`}>
-              {/* CTA Button */}
-              <div className="flex-1 lg:order-1">
-                <button
-                  onClick={handleViewDetails}
-                  className={`w-full bg-gradient-to-r from-primary-700 to-primary-800 hover:from-primary-800 hover:to-primary-900 text-white px-6 py-4 rounded-xl font-bold text-sm transition-all shadow-md hover:shadow-xl transform hover:-translate-y-0.5 uppercase tracking-wide flex items-center justify-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}
-                >
-                  <span>{language === 'fr' ? 'VOIR CHAMBRES & TARIFS' : language === 'ar' ? 'عرض الغرف والأسعار' : 'VIEW ROOMS & RATES'}</span>
-                  <ChevronRight size={18} className={isRTL ? 'rotate-180' : ''} />
-                </button>
-              </div>
+          {/* ── Price + CTA ──────────────────────────────────────────────────
+           *  Mobile : highlighted bar — large price left, button right
+           *  Desktop: vertical right panel (unchanged)
+           * ─────────────────────────────────────────────────────────────── */}
+          <div
+            className={`flex-shrink-0
+              flex flex-row items-center justify-between gap-3
+              border-t-2 border-primary-100 bg-gradient-to-r from-primary-50 to-white
+              px-4 py-3
+              md:flex-col md:justify-between md:border-t-0 md:bg-transparent md:p-5 md:w-52 lg:w-56
+              ${isRTL ? 'md:border-r border-gray-200' : 'md:border-l border-gray-200'}`}
+            dir="ltr"
+          >
+            {/* Price info */}
+            <div className={`min-w-0 flex-1 ${isRTL ? 'md:text-left' : 'md:text-right'}`}>
+              {pricing ? (
+                <>
+                  {/* "From" label — mobile + desktop */}
+                  <p className="text-[10px] font-bold text-primary-500 uppercase tracking-wider mb-0.5 md:text-xs md:text-gray-400 md:mb-1">
+                    {language === 'fr' ? 'À partir de' : language === 'ar' ? 'ابتداءً من' : 'From'}
+                  </p>
 
-              {/* Price Section - Desktop Only */}
-              {minimumPrice && (
-                <div className="hidden lg:block lg:order-2">
-                  <div className="bg-gradient-to-br from-primary-50 to-secondary-50 px-5 py-4 rounded-xl border-2 border-primary-200 text-center min-w-[140px]">
-                    <p className="text-xs text-gray-500 line-through mb-1">
-                      {(totalPrice * 1.2).toFixed(2)} {currency}
-                    </p>
-                    <div className="flex items-baseline justify-center gap-1">
-                      <span className="text-3xl font-bold text-primary-700">
-                        {totalPrice.toFixed(2)}
-                      </span>
-                      <span className="text-base font-bold text-primary-600">
-                        {currency}
-                      </span>
-                    </div>
-                    <p className="text-xs text-primary-700 font-semibold mt-1">
-                      {language === 'fr' 
-                        ? `${numberOfNights} ${numberOfNights === 1 ? 'nuit' : 'nuits'}` 
-                        : language === 'ar' 
-                        ? `${numberOfNights} ${numberOfNights === 1 ? 'ليلة' : 'ليالي'}`
-                        : `${numberOfNights} ${numberOfNights === 1 ? 'night' : 'nights'}`}
-                    </p>
+                  {/* Price — enlarged on mobile */}
+                  <div className="flex items-baseline gap-1 md:gap-1.5 md:justify-end leading-none">
+                    <span className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight">
+                      {fmt(pricing.price)}
+                    </span>
+                    <span className="text-sm md:text-lg font-bold text-primary-600 md:text-gray-500">{pricing.currency}</span>
                   </div>
-                </div>
+
+                  {/* Nights + mobile discount in one row */}
+                  <div className="flex items-center gap-2 mt-0.5 md:mt-2 md:block">
+                    <p className="text-xs text-gray-500 md:text-sm md:text-gray-400">
+                      <span className="font-semibold text-gray-700 md:text-gray-600">
+                        {nights}{' '}
+                        {language === 'fr'
+                          ? (nights > 1 ? 'nuits' : 'nuit')
+                          : language === 'ar'
+                          ? (nights > 1 ? 'ليالي' : 'ليلة')
+                          : (nights > 1 ? 'nights' : 'night')}
+                      </span>
+                    </p>
+                    {/* Discount tag — mobile only */}
+                    {pricing.discountPct >= 5 && (
+                      <span className="md:hidden inline-flex items-center bg-green-100 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+                        -{pricing.discountPct}%
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Strikethrough — desktop only */}
+                  {pricing.discountPct >= 5 && (
+                    <p className="hidden md:block text-sm text-gray-400 line-through mt-0.5">
+                      {fmt(pricing.basePrice)} {pricing.currency}
+                    </p>
+                  )}
+
+                  {/* Savings — desktop only */}
+                  {pricing.savings > 5 && (
+                    <p className="hidden md:flex text-sm text-green-600 font-semibold mt-2 items-center gap-1 justify-end">
+                      <span className="text-green-500">↓</span>
+                      {language === 'fr'
+                        ? `Économie ${fmt(pricing.savings)} ${pricing.currency}`
+                        : language === 'ar'
+                        ? `وفّر ${fmt(pricing.savings)} ${pricing.currency}`
+                        : `Save ${fmt(pricing.savings)} ${pricing.currency}`}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-gray-400">
+                  {language === 'fr' ? 'Prix sur demande' : language === 'ar' ? 'السعر عند الطلب' : 'Price on request'}
+                </p>
               )}
             </div>
+
+            {/* CTA button */}
+            <button
+              onClick={(e) => { e.stopPropagation(); handleViewDetails(); }}
+              className={`flex-shrink-0 flex items-center justify-center gap-1.5
+                bg-primary-700 hover:bg-primary-800 active:scale-95 text-white font-bold
+                transition-all shadow-md rounded-xl
+                px-4 py-3 text-sm
+                md:mt-5 md:w-full md:px-4 md:py-3 md:text-base md:gap-2
+                ${isRTL ? 'flex-row-reverse' : ''}`}
+            >
+              <span className="hidden md:inline">
+                {language === 'fr' ? "Voir l'offre" : language === 'ar' ? 'عرض التفاصيل' : 'View deal'}
+              </span>
+              <span className="md:hidden">
+                {language === 'fr' ? "Voir" : language === 'ar' ? 'عرض' : 'View'}
+              </span>
+              <ChevronRight size={16} className={isRTL ? 'rotate-180' : ''} />
+            </button>
           </div>
+
         </div>
       </div>
     </div>

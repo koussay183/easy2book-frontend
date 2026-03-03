@@ -22,6 +22,7 @@ import BookingConfirmation from './pages/BookingConfirmation';
 import PaymentCallback from './pages/PaymentCallback';
 import Bookings from './pages/Bookings';
 import Profile from './pages/Profile';
+import VerifyEmail from './pages/VerifyEmail';
 
 // Admin Pages
 import AdminLogin from './pages/admin/AdminLogin';
@@ -69,6 +70,7 @@ function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/verify-email/:token" element={<VerifyEmail />} />
             <Route path="/bookings" element={<Bookings />} />
             <Route path="/guest-booking-lookup" element={<GuestBookingLookup />} />
             
