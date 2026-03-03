@@ -194,7 +194,7 @@ const AdminDashboard = () => {
   const currentLabel = navItems.find(n => n.id === activeTab)?.label || 'Dashboard';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex" dir="ltr">
+    <div className="h-screen overflow-hidden bg-gray-50 flex" dir="ltr">
 
       {/* ══ Sidebar ══ */}
       <aside className={`${sidebarOpen ? 'w-60' : 'w-[68px]'} bg-primary-900 text-white transition-all duration-200 flex flex-col flex-shrink-0`}>
