@@ -426,7 +426,7 @@ const HotelDetails = () => {
   };
 
   // Per-room selection handler
-  const handleSelectRoom = (roomIdx, room) => {
+  const handleSelectRoom = (roomIdx, room, rIdx) => {
     const boarding = {
       Id: selectedBoarding.Id,
       Name: selectedBoarding.Name,
@@ -439,8 +439,8 @@ const HotelDetails = () => {
         (r.Id || r.RoomType) === (srcRoom.Id || srcRoom.RoomType)
       );
       const finalRoom = match
-        ? { ...match, Id: match.Id || match.RoomType, Name: match.Name || match.RoomType }
-        : { ...srcRoom, Id: srcRoom.Id || srcRoom.RoomType, Name: srcRoom.Name || srcRoom.RoomType };
+        ? { ...match, Id: match.Id || match.RoomType, Name: match.Name || match.RoomType, _rIdx: rIdx }
+        : { ...srcRoom, Id: srcRoom.Id || srcRoom.RoomType, Name: srcRoom.Name || srcRoom.RoomType, _rIdx: rIdx };
       return { room: finalRoom, boarding };
     };
 
@@ -1149,12 +1149,15 @@ const HotelDetails = () => {
                             <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                               {paxRooms.map((room, rIdx) => {
                                 const pricePerNight = parseFloat(room.Price) / nights;
-                                const isSelected = sel &&
-                                  (sel.room.Id === (room.Id || room.RoomType) || sel.room.RoomType === room.RoomType);
+                                const isSelected = !!sel && (
+                                  sel.room._rIdx !== undefined
+                                    ? sel.room._rIdx === rIdx
+                                    : (sel.room.Id || sel.room.RoomType) === (room.Id || room.RoomType)
+                                );
                                 return (
                                   <button
                                     key={rIdx}
-                                    onClick={() => handleSelectRoom(roomIdx, room)}
+                                    onClick={() => handleSelectRoom(roomIdx, room, rIdx)}
                                     className={`border-2 rounded-xl p-3 text-left transition-all ${isSelected ? 'border-primary-600 bg-primary-50 shadow-sm' : 'border-gray-200 bg-white hover:border-primary-300 hover:shadow-sm'}`}
                                   >
                                     <div className="flex items-start justify-between gap-2 mb-2">
