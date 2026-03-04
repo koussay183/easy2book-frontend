@@ -128,19 +128,37 @@ const Hotels = () => {
   }, []);
 
   // Infinite scroll — trigger loadMoreHotels when sentinel enters viewport
+  // Uses IntersectionObserver + a window scroll fallback for mobile (iOS Safari quirks
+  // with overflow:hidden ancestors can prevent IntersectionObserver from firing).
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
+
+    const tryLoad = () => {
+      if (hasMore && !loadingMore) loadMoreHotels();
+    };
+
+    // Primary: IntersectionObserver (desktop + modern mobile)
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore) {
-          loadMoreHotels();
-        }
+        if (entries[0].isIntersecting) tryLoad();
       },
-      { rootMargin: '300px' } // start loading 300 px before reaching the end
+      { rootMargin: '400px' }
     );
     observer.observe(el);
-    return () => observer.disconnect();
+
+    // Fallback: window scroll — fires on every scroll, checks if near page bottom
+    const onScroll = () => {
+      if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 600) {
+        tryLoad();
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', onScroll);
+    };
   }, [hasMore, loadingMore, loadMoreHotels]);
 
   // Scroll to first newly loaded hotel after each batch
