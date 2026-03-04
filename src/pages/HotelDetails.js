@@ -86,6 +86,8 @@ const HotelDetails = () => {
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [selectedBoarding, setSelectedBoarding] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [roomSelections, setRoomSelections] = useState([]); // [{room, boarding}] per room slot
+  const [applyToAll, setApplyToAll] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     description: true,
     facilities: true,
@@ -421,6 +423,63 @@ const HotelDetails = () => {
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  // Per-room selection handler
+  const handleSelectRoom = (roomIdx, room) => {
+    const boarding = {
+      Id: selectedBoarding.Id,
+      Name: selectedBoarding.Name,
+      Code: selectedBoarding.Code
+    };
+    const makeSlot = (targetIdx, srcRoom) => {
+      const paxRooms = selectedBoarding.Pax?.[targetIdx]?.Rooms
+        || selectedBoarding.Pax?.[0]?.Rooms || [];
+      const match = paxRooms.find(r =>
+        (r.Id || r.RoomType) === (srcRoom.Id || srcRoom.RoomType)
+      );
+      const finalRoom = match
+        ? { ...match, Id: match.Id || match.RoomType, Name: match.Name || match.RoomType }
+        : { ...srcRoom, Id: srcRoom.Id || srcRoom.RoomType, Name: srcRoom.Name || srcRoom.RoomType };
+      return { room: finalRoom, boarding };
+    };
+
+    let newSelections;
+    if (applyToAll) {
+      newSelections = searchRoomsConfig.map((_, i) => makeSlot(i, room));
+    } else {
+      newSelections = [...roomSelections];
+      newSelections[roomIdx] = makeSlot(roomIdx, room);
+    }
+    setRoomSelections(newSelections);
+
+    const allFilled = newSelections.filter(Boolean).length === searchRooms;
+    // Navigate immediately for 1 room, or when applyToAll fills everything
+    if (allFilled && (searchRooms === 1 || applyToAll)) {
+      const nights = searchCheckIn && searchCheckOut
+        ? Math.ceil((new Date(searchCheckOut) - new Date(searchCheckIn)) / (1000 * 60 * 60 * 24))
+        : hotel.SearchData?.NumberOfNights || 1;
+      const totalRoomPrice = newSelections.reduce(
+        (s, sel) => s + parseFloat(sel?.room?.Price || 0), 0
+      );
+      navigate('/hotel/booking', {
+        state: {
+          hotel,
+          room: newSelections[0].room,
+          boarding: newSelections[0].boarding,
+          roomSelections: newSelections,
+          checkIn: searchCheckIn,
+          checkOut: searchCheckOut,
+          adults: searchRoomsConfig.reduce((s, r) => s + (r.adults || 0), 0),
+          children: searchRoomsConfig.reduce((s, r) => s + (r.children?.length || 0), 0),
+          rooms: searchRooms,
+          roomsConfig: searchRoomsConfig,
+          nights,
+          pricePerNight: parseFloat((totalRoomPrice / nights).toFixed(2)),
+          totalPrice: totalRoomPrice
+        }
+      });
+    }
   };
 
   const handleContinueToConfirmation = () => {
@@ -1017,134 +1076,174 @@ const HotelDetails = () => {
                     </div>
                   )}
 
-                  {/* STEP 2: Select Room */}
+                  {/* STEP 2: Select Room(s) — per-room selection */}
                   {selectedBoarding && !selectedRoom && (
                     <div className="space-y-4">
-                      <div className="mb-4 flex items-center justify-between">
+                      {/* Header */}
+                      <div className="mb-2 flex items-center justify-between">
                         <div>
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">
-                            {language === 'fr' ? 'Étape 2: Choisissez votre chambre' : language === 'ar' ? 'الخطوة 2: اختر غرفتك' : 'Step 2: Choose your room'}
+                          <h3 className="text-lg font-bold text-gray-900 mb-1">
+                            {language === 'fr' ? 'Étape 2 : Choisissez vos chambres' : language === 'ar' ? 'الخطوة 2: اختر غرفك' : 'Step 2: Choose your rooms'}
                           </h3>
                           <p className="text-sm text-gray-600 flex items-center gap-2">
                             <Utensils size={14} />
                             <span className="font-semibold">{selectedBoarding.Name}</span>
+                            {searchRooms > 1 && (
+                              <span className="text-gray-400">— {searchRooms} {language === 'fr' ? 'chambres' : language === 'ar' ? 'غرف' : 'rooms'}</span>
+                            )}
                           </p>
                         </div>
                         <button
-                          onClick={() => setSelectedBoarding(null)}
+                          onClick={() => { setSelectedBoarding(null); setRoomSelections([]); setApplyToAll(false); }}
                           className="text-sm text-primary-600 hover:text-primary-700 font-semibold flex items-center gap-1"
                         >
                           <ArrowLeft size={16} />
                           {language === 'fr' ? 'Changer' : language === 'ar' ? 'تغيير' : 'Change'}
                         </button>
                       </div>
-                      
-                      {/* Info Banner */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-start gap-2">
-                        <Info size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
-                        <p className="text-sm text-blue-900">
-                          {language === 'fr' 
-                            ? 'Après avoir sélectionné une chambre, vous serez redirigé vers la page de réservation pour finaliser.'
-                            : language === 'ar' 
-                            ? 'بعد اختيار الغرفة، سيتم توجيهك إلى صفحة الحجز للإكمال.'
-                            : 'After selecting a room, you will be redirected to the booking page to finalize.'}
-                        </p>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {selectedBoarding.Pax?.map((pax, paxIdx) => (
-                          pax.Rooms?.map((room, roomIdx) => {
-                            // Calculate nights from check-in and check-out dates
-                            const nights = searchCheckIn && searchCheckOut
-                              ? Math.ceil((new Date(searchCheckOut) - new Date(searchCheckIn)) / (1000 * 60 * 60 * 24))
-                              : hotel.SearchData?.NumberOfNights || 1;
-                            const pricePerNight = parseFloat(room.Price) / nights;
-                            
-                            return (
-                            <button
-                              key={`${paxIdx}-${roomIdx}`}
-                              onClick={() => {
-                                // Navigate to BookingPage with all necessary data
-                                navigate('/hotel/booking', {
-                                  state: {
-                                    hotel,
-                                    room: {
-                                      ...room,
-                                      Id: room.Id || room.RoomType,
-                                      Name: room.Name || room.RoomType,
-                                      Price: room.Price
-                                    },
-                                    boarding: {
-                                      ...selectedBoarding,
-                                      Id: selectedBoarding.Id,
-                                      Name: selectedBoarding.Name,
-                                      Code: selectedBoarding.Code
-                                    },
-                                    checkIn: searchCheckIn,
-                                    checkOut: searchCheckOut,
-                                    adults: searchRoomsConfig.reduce((sum, room) => sum + room.adults, 0),
-                                    children: searchRoomsConfig.reduce((sum, room) => sum + room.children.length, 0),
-                                    rooms: searchRooms,
-                                    roomsConfig: searchRoomsConfig,
-                                    nights,
-                                    pricePerNight,
-                                    totalPrice: room.Price
-                                  }
-                                });
-                              }}
-                              className="border-2 border-gray-200 rounded-xl p-4 bg-white hover:shadow-lg hover:border-primary-400 transition-all text-left group"
-                            >
-                              <div className="flex items-start justify-between gap-3 mb-3">
-                                <div className="flex items-center gap-2">
-                                  <div className="bg-primary-100 group-hover:bg-primary-600 text-primary-600 group-hover:text-white p-2 rounded-lg transition-all">
-                                    <Home size={18} />
-                                  </div>
-                                  <div>
-                                    <p className="font-bold text-base text-gray-900">{room.Name || room.RoomType}</p>
-                                    {room.Quantity && (
-                                      <p className="text-xs text-green-600 flex items-center gap-1">
-                                        <Check size={10} />
-                                        {room.Quantity} {language === 'fr' ? 'dispo' : language === 'ar' ? 'متاح' : 'avail'}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
+
+                      {/* Apply-to-all toggle — only for multi-room */}
+                      {searchRooms > 1 && (
+                        <label className="inline-flex items-center gap-2 cursor-pointer bg-primary-50 border border-primary-100 rounded-xl px-4 py-2.5 text-sm font-medium text-primary-800 select-none">
+                          <input
+                            type="checkbox"
+                            checked={applyToAll}
+                            onChange={e => { setApplyToAll(e.target.checked); setRoomSelections([]); }}
+                            className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                          />
+                          {language === 'fr' ? 'Même type pour toutes les chambres' : language === 'ar' ? 'نفس النوع لجميع الغرف' : 'Same room type for all rooms'}
+                        </label>
+                      )}
+
+                      {/* Per-room card */}
+                      {searchRoomsConfig.map((roomCfg, roomIdx) => {
+                        const paxRooms = selectedBoarding.Pax?.[roomIdx]?.Rooms
+                          || selectedBoarding.Pax?.[0]?.Rooms || [];
+                        const nights = searchCheckIn && searchCheckOut
+                          ? Math.ceil((new Date(searchCheckOut) - new Date(searchCheckIn)) / (1000 * 60 * 60 * 24))
+                          : hotel.SearchData?.NumberOfNights || 1;
+                        const sel = roomSelections[roomIdx];
+                        return (
+                          <div key={roomIdx} className="border border-gray-200 rounded-xl overflow-hidden">
+                            {/* Room label row */}
+                            <div className={`flex items-center justify-between px-4 py-2.5 border-b ${sel ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-200'}`}>
+                              <div className="flex items-center gap-2">
+                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${sel ? 'bg-green-600 text-white' : 'bg-primary-700 text-white'}`}>
+                                  {sel ? '\u2713' : roomIdx + 1}
+                                </span>
+                                <span className="text-sm font-semibold text-gray-800">
+                                  {language === 'fr' ? `Chambre ${roomIdx + 1}` : language === 'ar' ? `الغرفة ${roomIdx + 1}` : `Room ${roomIdx + 1}`}
+                                  {' — '}
+                                  {roomCfg.adults} {language === 'fr' ? (roomCfg.adults > 1 ? 'adultes' : 'adulte') : language === 'ar' ? 'بالغ' : (roomCfg.adults > 1 ? 'adults' : 'adult')}
+                                  {(roomCfg.children?.length || 0) > 0 && `, ${roomCfg.children.length} ${language === 'fr' ? (roomCfg.children.length > 1 ? 'enfants' : 'enfant') : language === 'ar' ? 'طفل' : (roomCfg.children.length > 1 ? 'children' : 'child')}`}
+                                </span>
                               </div>
-                              {room.Description && (
-                                <p className="text-xs text-gray-600 mb-3 line-clamp-2">{room.Description}</p>
+                              {sel && (
+                                <span className="text-xs font-semibold text-green-700 bg-white border border-green-200 px-2 py-0.5 rounded-full truncate max-w-[140px]">
+                                  {sel.room.Name || sel.room.RoomType}
+                                </span>
                               )}
-                              <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                                <div>
-                                  <p className="text-xs text-gray-500">{language === 'fr' ? 'Prix total' : language === 'ar' ? 'السعر الإجمالي' : 'Total'}</p>
-                                  <p className="text-xl font-bold text-primary-600">{room.Price} <span className="text-sm">{currency}</span></p>
-                                  <p className="text-xs text-gray-500">{pricePerNight.toFixed(0)} × {nights} {language === 'fr' ? 'nuits' : language === 'ar' ? 'ليالي' : 'nights'}</p>
-                                </div>
-                                <div className="flex items-center gap-1 text-primary-600 font-semibold text-sm">
-                                  <span>{language === 'fr' ? 'Réserver' : language === 'ar' ? 'احجز' : 'Book Now'}</span>
-                                  <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                                </div>
-                              </div>
-                              {room.Supplement && room.Supplement.length > 0 && (
-                                <div className="mt-3 pt-3 border-t border-gray-200">
-                                  <p className="text-xs font-semibold text-gray-700 mb-1 flex items-center gap-1">
-                                    <Info size={12} />
-                                    {language === 'fr' ? 'Suppléments' : language === 'ar' ? 'إضافات' : 'Extras'}
-                                  </p>
-                                  <div className="space-y-1">
-                                    {room.Supplement.map((supp, suppIdx) => (
-                                      <div key={suppIdx} className="flex items-center justify-between text-xs text-gray-600">
-                                        <span>• {supp.Name}</span>
-                                        <span className="font-semibold">+{supp.Price} {currency}</span>
+                            </div>
+
+                            {/* Room type options */}
+                            <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {paxRooms.map((room, rIdx) => {
+                                const pricePerNight = parseFloat(room.Price) / nights;
+                                const isSelected = sel &&
+                                  (sel.room.Id === (room.Id || room.RoomType) || sel.room.RoomType === room.RoomType);
+                                return (
+                                  <button
+                                    key={rIdx}
+                                    onClick={() => handleSelectRoom(roomIdx, room)}
+                                    className={`border-2 rounded-xl p-3 text-left transition-all ${isSelected ? 'border-primary-600 bg-primary-50 shadow-sm' : 'border-gray-200 bg-white hover:border-primary-300 hover:shadow-sm'}`}
+                                  >
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <div className={`p-1.5 rounded-lg flex-shrink-0 ${isSelected ? 'bg-primary-600 text-white' : 'bg-primary-100 text-primary-600'}`}>
+                                          <Home size={14} />
+                                        </div>
+                                        <p className="font-bold text-sm text-gray-900 leading-tight">{room.Name || room.RoomType}</p>
                                       </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </button>
-                          )
-                          })
-                        ))}
-                      </div>
+                                      {isSelected && <Check size={16} className="text-primary-600 flex-shrink-0 mt-0.5" />}
+                                    </div>
+                                    {room.Description && (
+                                      <p className="text-xs text-gray-500 mb-2 line-clamp-1">{room.Description}</p>
+                                    )}
+                                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                                      <div>
+                                        <p className="text-base font-bold text-primary-700">{room.Price} <span className="text-xs font-normal text-gray-400">{currency}</span></p>
+                                        <p className="text-[10px] text-gray-400">{pricePerNight.toFixed(0)} × {nights} {language === 'fr' ? 'nuits' : language === 'ar' ? 'ليالي' : 'nights'}</p>
+                                      </div>
+                                      {room.Quantity && (
+                                        <p className="text-xs text-green-600 flex items-center gap-1">
+                                          <Check size={10} />
+                                          {room.Quantity} {language === 'fr' ? 'dispo' : language === 'ar' ? 'متاح' : 'avail'}
+                                        </p>
+                                      )}
+                                    </div>
+                                    {room.Supplement?.length > 0 && (
+                                      <div className="mt-2 pt-2 border-t border-gray-100 space-y-0.5">
+                                        {room.Supplement.map((s, si) => (
+                                          <div key={si} className="flex items-center justify-between text-xs text-gray-500">
+                                            <span>+ {s.Name}</span>
+                                            <span className="font-semibold">+{s.Price} {currency}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Multi-room total + Continue button */}
+                      {searchRooms > 1 && (
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                          <div>
+                            <p className="text-xs text-gray-400 mb-0.5">
+                              {roomSelections.filter(Boolean).length}/{searchRooms} {language === 'fr' ? 'chambres sélectionnées' : language === 'ar' ? 'غرف مختارة' : 'rooms selected'}
+                            </p>
+                            {roomSelections.filter(Boolean).length === searchRooms && (
+                              <p className="text-lg font-bold text-primary-700">
+                                {roomSelections.reduce((s, sel) => s + parseFloat(sel?.room?.Price || 0), 0)} {currency}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            disabled={roomSelections.filter(Boolean).length < searchRooms}
+                            onClick={() => {
+                              const nights = searchCheckIn && searchCheckOut
+                                ? Math.ceil((new Date(searchCheckOut) - new Date(searchCheckIn)) / (1000 * 60 * 60 * 24))
+                                : hotel.SearchData?.NumberOfNights || 1;
+                              const totalRoomPrice = roomSelections.reduce((s, sel) => s + parseFloat(sel?.room?.Price || 0), 0);
+                              navigate('/hotel/booking', {
+                                state: {
+                                  hotel,
+                                  room: roomSelections[0].room,
+                                  boarding: roomSelections[0].boarding,
+                                  roomSelections,
+                                  checkIn: searchCheckIn,
+                                  checkOut: searchCheckOut,
+                                  adults: searchRoomsConfig.reduce((s, r) => s + (r.adults || 0), 0),
+                                  children: searchRoomsConfig.reduce((s, r) => s + (r.children?.length || 0), 0),
+                                  rooms: searchRooms,
+                                  roomsConfig: searchRoomsConfig,
+                                  nights,
+                                  pricePerNight: parseFloat((totalRoomPrice / nights).toFixed(2)),
+                                  totalPrice: totalRoomPrice
+                                }
+                              });
+                            }}
+                            className={`px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${roomSelections.filter(Boolean).length < searchRooms ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-primary-700 hover:bg-primary-800 text-white shadow-sm'}`}
+                          >
+                            {language === 'fr' ? 'Continuer' : language === 'ar' ? 'متابعة' : 'Continue'}
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 

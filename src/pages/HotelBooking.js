@@ -88,11 +88,21 @@ const HotelBooking = () => {
   }
 
   const { hotel, room, boarding, checkIn, checkOut,
-          adults, children, nights, pricePerNight, totalPrice } = state;
+          adults, children, nights, pricePerNight, totalPrice,
+          roomSelections: rawRoomSelections, roomsConfig } = state;
 
   const currency   = hotel.SearchData?.Currency || 'TND';
   const starRating = hotel.Category?.Star || 0;
   const cityName   = hotel.City?.Name || '';
+
+  // Multi-room support: fall back to single-room if no rawRoomSelections
+  const resolvedRoomSelections = (rawRoomSelections?.length > 0)
+    ? rawRoomSelections
+    : (room ? [{ room, boarding }] : []);
+
+  const resolvedTotalPrice = rawRoomSelections?.length > 0
+    ? rawRoomSelections.reduce((s, sel) => s + parseFloat(sel?.room?.Price || 0), 0)
+    : parseFloat(totalPrice || 0);
 
   /* ── Init ── */
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -172,21 +182,28 @@ const HotelBooking = () => {
           Hotel: parseInt(hotel.Id),
           CheckIn: checkIn, CheckOut: checkOut,
           Option: [], Source: hotel.SearchData?.Source || 'local-2',
-          Rooms: [{
-            Id: room.Id?.toString() || room.RoomType,
-            Boarding: boarding.Id?.toString() || boarding.Name,
-            View: [], Supplement: [],
-            Pax: {
-              Adult: guestInfo.adults.map(a => ({ Civility: a.civility, Name: a.name, Surname: a.surname, Holder: a.holder })),
-              ...(guestInfo.children.length > 0 && {
-                Child: guestInfo.children.map(c => ({ Name: c.name, Surname: c.surname, Age: c.age.toString() }))
-              })
-            }
-          }]
+          Rooms: resolvedRoomSelections.map((sel, i) => {
+            const cfg = (roomsConfig || [])[i] || { adults: (i === 0 ? adults : 0), children: [] };
+            const adultOffset = (roomsConfig || []).slice(0, i).reduce((s, r) => s + (r.adults || 0), 0);
+            const childOffset = (roomsConfig || []).slice(0, i).reduce((s, r) => s + (r.children?.length || 0), 0);
+            const roomAdults   = cfg.adults || (i === 0 ? adults : 0);
+            const roomChildren = cfg.children?.length > 0 ? cfg.children : (i === 0 ? new Array(children || 0).fill(null) : []);
+            return {
+              Id: sel.room.Id?.toString() || sel.room.RoomType,
+              Boarding: sel.boarding.Id?.toString() || sel.boarding.Name,
+              View: [], Supplement: [],
+              Pax: {
+                Adult: (guestInfo.adults || []).slice(adultOffset, adultOffset + roomAdults).map(a => ({ Civility: a.civility, Name: a.name, Surname: a.surname, Holder: a.holder })),
+                ...(roomChildren.length > 0 && {
+                  Child: (guestInfo.children || []).slice(childOffset, childOffset + roomChildren.length).map(c => ({ Name: c.name, Surname: c.surname, Age: c.age.toString() }))
+                })
+              }
+            };
+          })
         },
         paymentMethod,
         ...(paymentMethod === 'online' && { paymentPlan }),
-        totalPrice: parseFloat(totalPrice),
+        totalPrice: resolvedTotalPrice,
         notes,
       };
 
@@ -374,14 +391,28 @@ const HotelBooking = () => {
 
                 {/* Details */}
                 <div className="space-y-2 pt-1 border-t border-gray-100">
-                  <Row
-                    label={language === 'fr' ? 'Chambre'   : language === 'ar' ? 'الغرفة'     : 'Room'}
-                    value={room.Name || room.RoomType}
-                  />
-                  <Row
-                    label={language === 'fr' ? 'Pension'   : language === 'ar' ? 'الإقامة'    : 'Board'}
-                    value={`${boarding.Code || boarding.Name}${boarding.Code && boarding.Name ? ` · ${boarding.Name}` : ''}`}
-                  />
+                  {resolvedRoomSelections.length > 1 ? (
+                    resolvedRoomSelections.map((sel, i) => (
+                      <div key={i} className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">
+                          {language === 'fr' ? `Chambre ${i + 1}` : language === 'ar' ? `الغرفة ${i + 1}` : `Room ${i + 1}`}
+                        </p>
+                        <p className="text-xs font-medium text-gray-800">{sel.room.Name || sel.room.RoomType}</p>
+                        <p className="text-xs text-gray-500">{sel.boarding.Code || sel.boarding.Name}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <>
+                      <Row
+                        label={language === 'fr' ? 'Chambre'   : language === 'ar' ? 'الغرفة'     : 'Room'}
+                        value={resolvedRoomSelections[0]?.room?.Name || resolvedRoomSelections[0]?.room?.RoomType || (room?.Name || room?.RoomType)}
+                      />
+                      <Row
+                        label={language === 'fr' ? 'Pension'   : language === 'ar' ? 'الإقامة'    : 'Board'}
+                        value={(() => { const b = resolvedRoomSelections[0]?.boarding || boarding; return `${b.Code || b.Name}${b.Code && b.Name ? ` · ${b.Name}` : ''}`; })()}
+                      />
+                    </>
+                  )}
                   <Row
                     label={language === 'fr' ? 'Voyageurs' : language === 'ar' ? 'المسافرون'  : 'Guests'}
                     value={`${adults} ${language === 'fr' ? 'adulte(s)' : language === 'ar' ? 'بالغ' : 'adult(s)'}${children > 0 ? ` · ${children} ${language === 'fr' ? 'enfant(s)' : language === 'ar' ? 'طفل' : 'child(ren)'}` : ''}`}
@@ -392,12 +423,14 @@ const HotelBooking = () => {
                 <div className={`flex items-center justify-between pt-3 border-t border-gray-200 ${isRTL ? 'flex-row-reverse' : ''}`}>
                   <div>
                     <p className="text-xs text-gray-400">
-                      {Math.round(pricePerNight)} {currency} × {nights} {t.nightsLbl}
+                      {resolvedRoomSelections.length > 1
+                        ? `${resolvedRoomSelections.length} ${language === 'fr' ? 'chambres' : language === 'ar' ? 'غرف' : 'rooms'} × ${nights} ${t.nightsLbl}`
+                        : `${Math.round(pricePerNight)} ${currency} × ${nights} ${t.nightsLbl}`}
                     </p>
                     <p className="text-xs font-medium text-gray-500 mt-0.5">Total</p>
                   </div>
                   <p className="text-xl font-bold text-primary-700" dir="ltr">
-                    {totalPrice} <span className="text-sm font-medium">{currency}</span>
+                    {resolvedTotalPrice} <span className="text-sm font-medium">{currency}</span>
                   </p>
                 </div>
               </div>
@@ -424,97 +457,188 @@ const HotelBooking = () => {
               >
                 <div className="space-y-3">
 
-                  {/* Adults */}
-                  {guestInfo.adults.map((adult, idx) => (
-                    <div
-                      key={idx}
-                      className="border border-gray-200 rounded-xl p-4 bg-gray-50/50"
-                      data-error={!!(errors[`adult_${idx}_name`] || errors[`adult_${idx}_surname`]) || undefined}
-                    >
-                      <div className={`flex items-center justify-between mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <span className="text-xs font-semibold text-gray-700">
-                          {language === 'fr' ? `Adulte ${idx + 1}` : language === 'ar' ? `البالغ ${idx + 1}` : `Adult ${idx + 1}`}
-                        </span>
-                        <label className={`flex items-center gap-1.5 cursor-pointer select-none ${isRTL ? 'flex-row-reverse' : ''}`}>
-                          <input
-                            type="checkbox"
-                            checked={adult.holder}
-                            onChange={() => handleAdultChange(idx, 'holder', true)}
-                            className="w-3.5 h-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
-                          />
-                          <span className="text-xs text-gray-500">
-                            {language === 'fr' ? 'Titulaire' : language === 'ar' ? 'صاحب الحجز' : 'Holder'}
+                  {(roomsConfig && roomsConfig.length > 1) ? (
+                    roomsConfig.map((cfg, roomIdx) => {
+                      const adultOffset = roomsConfig.slice(0, roomIdx).reduce((s, r) => s + (r.adults || 0), 0);
+                      const childOffset = roomsConfig.slice(0, roomIdx).reduce((s, r) => s + (r.children?.length || 0), 0);
+                      const roomAdults = cfg.adults || 0;
+                      const roomChildCount = cfg.children?.length || 0;
+                      return (
+                        <div key={roomIdx} className="space-y-2">
+                          {/* Room group header */}
+                          <div className={`flex items-center gap-2 pt-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            <span className="w-5 h-5 rounded-full bg-primary-700 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">{roomIdx + 1}</span>
+                            <span className="text-xs font-bold text-primary-700 uppercase tracking-wide">
+                              {language === 'fr' ? `Chambre ${roomIdx + 1}` : language === 'ar' ? `الغرفة ${roomIdx + 1}` : `Room ${roomIdx + 1}`}
+                              {' — '}
+                              {cfg.adults} {language === 'fr' ? (cfg.adults > 1 ? 'adultes' : 'adulte') : language === 'ar' ? 'بالغ' : (cfg.adults > 1 ? 'adults' : 'adult')}
+                              {roomChildCount > 0 && `, ${roomChildCount} ${language === 'fr' ? (roomChildCount > 1 ? 'enfants' : 'enfant') : language === 'ar' ? 'طفل' : (roomChildCount > 1 ? 'children' : 'child')}`}
+                            </span>
+                          </div>
+
+                          {/* Adults for this room */}
+                          {guestInfo.adults.slice(adultOffset, adultOffset + roomAdults).map((adult, localIdx) => {
+                            const idx = adultOffset + localIdx;
+                            return (
+                              <div
+                                key={idx}
+                                className="border border-gray-200 rounded-xl p-4 bg-gray-50/50"
+                                data-error={!!(errors[`adult_${idx}_name`] || errors[`adult_${idx}_surname`]) || undefined}
+                              >
+                                <div className={`flex items-center justify-between mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                  <span className="text-xs font-semibold text-gray-700">
+                                    {language === 'fr' ? `Adulte ${idx + 1}` : language === 'ar' ? `البالغ ${idx + 1}` : `Adult ${idx + 1}`}
+                                  </span>
+                                  <label className={`flex items-center gap-1.5 cursor-pointer select-none ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                    <input
+                                      type="checkbox"
+                                      checked={adult.holder}
+                                      onChange={() => handleAdultChange(idx, 'holder', true)}
+                                      className="w-3.5 h-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                    />
+                                    <span className="text-xs text-gray-500">
+                                      {language === 'fr' ? 'Titulaire' : language === 'ar' ? 'صاحب الحجز' : 'Holder'}
+                                    </span>
+                                    {adult.holder && <CheckCircle size={12} className="text-primary-600" />}
+                                  </label>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                  <Field label={language === 'fr' ? 'Civilité' : language === 'ar' ? 'اللقب' : 'Title'}>
+                                    <select value={adult.civility} onChange={e => handleAdultChange(idx, 'civility', e.target.value)} className="w-full px-3 py-2.5 text-sm border border-gray-300 hover:border-gray-400 rounded-lg transition-colors outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-600 bg-white">
+                                      <option value="Mr">Mr</option><option value="Ms">Ms</option><option value="Mrs">Mrs</option><option value="Mde">Mde</option>
+                                    </select>
+                                  </Field>
+                                  <Field label={language === 'fr' ? 'Prénom' : language === 'ar' ? 'الاسم الأول' : 'First Name'} required error={errors[`adult_${idx}_name`]}>
+                                    <input type="text" value={adult.name} placeholder={language === 'fr' ? 'Mohamed' : language === 'ar' ? 'محمد' : 'John'} onChange={e => handleAdultChange(idx, 'name', e.target.value)} dir={isRTL ? 'rtl' : 'ltr'} className={inputCls(errors[`adult_${idx}_name`])} />
+                                  </Field>
+                                  <Field label={language === 'fr' ? 'Nom de famille' : language === 'ar' ? 'اسم العائلة' : 'Last Name'} required error={errors[`adult_${idx}_surname`]}>
+                                    <input type="text" value={adult.surname} placeholder={language === 'fr' ? 'Ben Ali' : language === 'ar' ? 'بن علي' : 'Smith'} onChange={e => handleAdultChange(idx, 'surname', e.target.value)} dir={isRTL ? 'rtl' : 'ltr'} className={inputCls(errors[`adult_${idx}_surname`])} />
+                                  </Field>
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {/* Children for this room */}
+                          {guestInfo.children.slice(childOffset, childOffset + roomChildCount).map((child, localIdx) => {
+                            const idx = childOffset + localIdx;
+                            return (
+                              <div key={idx} className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
+                                <span className="block text-xs font-semibold text-gray-700 mb-3">
+                                  {language === 'fr' ? `Enfant ${idx + 1}` : language === 'ar' ? `الطفل ${idx + 1}` : `Child ${idx + 1}`}
+                                </span>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                  <Field label={language === 'fr' ? 'Prénom' : language === 'ar' ? 'الاسم الأول' : 'First Name'} required error={errors[`child_${idx}_name`]}>
+                                    <input type="text" value={child.name} onChange={e => handleChildChange(idx, 'name', e.target.value)} dir={isRTL ? 'rtl' : 'ltr'} className={inputCls(errors[`child_${idx}_name`])} />
+                                  </Field>
+                                  <Field label={language === 'fr' ? 'Nom' : language === 'ar' ? 'اسم العائلة' : 'Last Name'} required error={errors[`child_${idx}_surname`]}>
+                                    <input type="text" value={child.surname} onChange={e => handleChildChange(idx, 'surname', e.target.value)} dir={isRTL ? 'rtl' : 'ltr'} className={inputCls(errors[`child_${idx}_surname`])} />
+                                  </Field>
+                                  <Field label={language === 'fr' ? 'Âge (0–17)' : language === 'ar' ? 'العمر (0–17)' : 'Age (0–17)'} required>
+                                    <input type="number" value={child.age} onChange={e => handleChildChange(idx, 'age', e.target.value)} min="0" max="17" dir="ltr" className={inputCls()} />
+                                  </Field>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <>
+                      {/* Adults */}
+                      {guestInfo.adults.map((adult, idx) => (
+                        <div
+                          key={idx}
+                          className="border border-gray-200 rounded-xl p-4 bg-gray-50/50"
+                          data-error={!!(errors[`adult_${idx}_name`] || errors[`adult_${idx}_surname`]) || undefined}
+                        >
+                          <div className={`flex items-center justify-between mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            <span className="text-xs font-semibold text-gray-700">
+                              {language === 'fr' ? `Adulte ${idx + 1}` : language === 'ar' ? `البالغ ${idx + 1}` : `Adult ${idx + 1}`}
+                            </span>
+                            <label className={`flex items-center gap-1.5 cursor-pointer select-none ${isRTL ? 'flex-row-reverse' : ''}`}>
+                              <input
+                                type="checkbox"
+                                checked={adult.holder}
+                                onChange={() => handleAdultChange(idx, 'holder', true)}
+                                className="w-3.5 h-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                              />
+                              <span className="text-xs text-gray-500">
+                                {language === 'fr' ? 'Titulaire' : language === 'ar' ? 'صاحب الحجز' : 'Holder'}
+                              </span>
+                              {adult.holder && <CheckCircle size={12} className="text-primary-600" />}
+                            </label>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <Field label={language === 'fr' ? 'Civilité' : language === 'ar' ? 'اللقب' : 'Title'}>
+                              <select
+                                value={adult.civility}
+                                onChange={e => handleAdultChange(idx, 'civility', e.target.value)}
+                                className="w-full px-3 py-2.5 text-sm border border-gray-300 hover:border-gray-400 rounded-lg transition-colors outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-600 bg-white"
+                              >
+                                <option value="Mr">Mr</option>
+                                <option value="Ms">Ms</option>
+                                <option value="Mrs">Mrs</option>
+                                <option value="Mde">Mde</option>
+                              </select>
+                            </Field>
+
+                            <Field
+                              label={language === 'fr' ? 'Prénom' : language === 'ar' ? 'الاسم الأول' : 'First Name'}
+                              required
+                              error={errors[`adult_${idx}_name`]}
+                            >
+                              <input
+                                type="text"
+                                value={adult.name}
+                                placeholder={language === 'fr' ? 'Mohamed' : language === 'ar' ? 'محمد' : 'John'}
+                                onChange={e => handleAdultChange(idx, 'name', e.target.value)}
+                                dir={isRTL ? 'rtl' : 'ltr'}
+                                className={inputCls(errors[`adult_${idx}_name`])}
+                              />
+                            </Field>
+
+                            <Field
+                              label={language === 'fr' ? 'Nom de famille' : language === 'ar' ? 'اسم العائلة' : 'Last Name'}
+                              required
+                              error={errors[`adult_${idx}_surname`]}
+                            >
+                              <input
+                                type="text"
+                                value={adult.surname}
+                                placeholder={language === 'fr' ? 'Ben Ali' : language === 'ar' ? 'بن علي' : 'Smith'}
+                                onChange={e => handleAdultChange(idx, 'surname', e.target.value)}
+                                dir={isRTL ? 'rtl' : 'ltr'}
+                                className={inputCls(errors[`adult_${idx}_surname`])}
+                              />
+                            </Field>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Children */}
+                      {guestInfo.children.map((child, idx) => (
+                        <div key={idx} className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
+                          <span className="block text-xs font-semibold text-gray-700 mb-3">
+                            {language === 'fr' ? `Enfant ${idx + 1}` : language === 'ar' ? `الطفل ${idx + 1}` : `Child ${idx + 1}`}
                           </span>
-                          {adult.holder && <CheckCircle size={12} className="text-primary-600" />}
-                        </label>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <Field label={language === 'fr' ? 'Civilité' : language === 'ar' ? 'اللقب' : 'Title'}>
-                          <select
-                            value={adult.civility}
-                            onChange={e => handleAdultChange(idx, 'civility', e.target.value)}
-                            className="w-full px-3 py-2.5 text-sm border border-gray-300 hover:border-gray-400 rounded-lg transition-colors outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-600 bg-white"
-                          >
-                            <option value="Mr">Mr</option>
-                            <option value="Ms">Ms</option>
-                            <option value="Mrs">Mrs</option>
-                            <option value="Mde">Mde</option>
-                          </select>
-                        </Field>
-
-                        <Field
-                          label={language === 'fr' ? 'Prénom' : language === 'ar' ? 'الاسم الأول' : 'First Name'}
-                          required
-                          error={errors[`adult_${idx}_name`]}
-                        >
-                          <input
-                            type="text"
-                            value={adult.name}
-                            placeholder={language === 'fr' ? 'Mohamed' : language === 'ar' ? 'محمد' : 'John'}
-                            onChange={e => handleAdultChange(idx, 'name', e.target.value)}
-                            dir={isRTL ? 'rtl' : 'ltr'}
-                            className={inputCls(errors[`adult_${idx}_name`])}
-                          />
-                        </Field>
-
-                        <Field
-                          label={language === 'fr' ? 'Nom de famille' : language === 'ar' ? 'اسم العائلة' : 'Last Name'}
-                          required
-                          error={errors[`adult_${idx}_surname`]}
-                        >
-                          <input
-                            type="text"
-                            value={adult.surname}
-                            placeholder={language === 'fr' ? 'Ben Ali' : language === 'ar' ? 'بن علي' : 'Smith'}
-                            onChange={e => handleAdultChange(idx, 'surname', e.target.value)}
-                            dir={isRTL ? 'rtl' : 'ltr'}
-                            className={inputCls(errors[`adult_${idx}_surname`])}
-                          />
-                        </Field>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Children */}
-                  {guestInfo.children.map((child, idx) => (
-                    <div key={idx} className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
-                      <span className="block text-xs font-semibold text-gray-700 mb-3">
-                        {language === 'fr' ? `Enfant ${idx + 1}` : language === 'ar' ? `الطفل ${idx + 1}` : `Child ${idx + 1}`}
-                      </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <Field label={language === 'fr' ? 'Prénom' : language === 'ar' ? 'الاسم الأول' : 'First Name'} required error={errors[`child_${idx}_name`]}>
-                          <input type="text" value={child.name} onChange={e => handleChildChange(idx, 'name', e.target.value)} dir={isRTL ? 'rtl' : 'ltr'} className={inputCls(errors[`child_${idx}_name`])} />
-                        </Field>
-                        <Field label={language === 'fr' ? 'Nom' : language === 'ar' ? 'اسم العائلة' : 'Last Name'} required error={errors[`child_${idx}_surname`]}>
-                          <input type="text" value={child.surname} onChange={e => handleChildChange(idx, 'surname', e.target.value)} dir={isRTL ? 'rtl' : 'ltr'} className={inputCls(errors[`child_${idx}_surname`])} />
-                        </Field>
-                        <Field label={language === 'fr' ? 'Âge (0–17)' : language === 'ar' ? 'العمر (0–17)' : 'Age (0–17)'} required>
-                          <input type="number" value={child.age} onChange={e => handleChildChange(idx, 'age', e.target.value)} min="0" max="17" dir="ltr" className={inputCls()} />
-                        </Field>
-                      </div>
-                    </div>
-                  ))}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <Field label={language === 'fr' ? 'Prénom' : language === 'ar' ? 'الاسم الأول' : 'First Name'} required error={errors[`child_${idx}_name`]}>
+                              <input type="text" value={child.name} onChange={e => handleChildChange(idx, 'name', e.target.value)} dir={isRTL ? 'rtl' : 'ltr'} className={inputCls(errors[`child_${idx}_name`])} />
+                            </Field>
+                            <Field label={language === 'fr' ? 'Nom' : language === 'ar' ? 'اسم العائلة' : 'Last Name'} required error={errors[`child_${idx}_surname`]}>
+                              <input type="text" value={child.surname} onChange={e => handleChildChange(idx, 'surname', e.target.value)} dir={isRTL ? 'rtl' : 'ltr'} className={inputCls(errors[`child_${idx}_surname`])} />
+                            </Field>
+                            <Field label={language === 'fr' ? 'Âge (0–17)' : language === 'ar' ? 'العمر (0–17)' : 'Age (0–17)'} required>
+                              <input type="number" value={child.age} onChange={e => handleChildChange(idx, 'age', e.target.value)} min="0" max="17" dir="ltr" className={inputCls()} />
+                            </Field>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
               </Section>
 
@@ -805,7 +929,7 @@ const HotelBooking = () => {
                     </div>
                   </div>
                   <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <span className="text-sm font-bold text-primary-700" dir="ltr">{totalPrice} {currency}</span>
+                    <span className="text-sm font-bold text-primary-700" dir="ltr">{resolvedTotalPrice} {currency}</span>
                     {showMobileSummary ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
                   </div>
                 </button>
@@ -821,8 +945,22 @@ const HotelBooking = () => {
                         <p className="text-xs font-semibold text-gray-800 mt-0.5">{fmt(checkOut)}</p>
                       </div>
                     </div>
-                    <Row label={language === 'fr' ? 'Chambre' : language === 'ar' ? 'الغرفة' : 'Room'} value={room.Name || room.RoomType} />
-                    <Row label={language === 'fr' ? 'Pension' : language === 'ar' ? 'الإقامة' : 'Board'} value={boarding.Code || boarding.Name} />
+                    {resolvedRoomSelections.length > 1 ? (
+                      resolvedRoomSelections.map((sel, i) => (
+                        <div key={i} className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
+                            {language === 'fr' ? `Chambre ${i + 1}` : language === 'ar' ? `الغرفة ${i + 1}` : `Room ${i + 1}`}
+                          </p>
+                          <p className="text-xs font-medium text-gray-800">{sel.room.Name || sel.room.RoomType}</p>
+                          <p className="text-xs text-gray-500">{sel.boarding.Code || sel.boarding.Name}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <>
+                        <Row label={language === 'fr' ? 'Chambre' : language === 'ar' ? 'الغرفة' : 'Room'} value={resolvedRoomSelections[0]?.room?.Name || resolvedRoomSelections[0]?.room?.RoomType || (room?.Name || room?.RoomType)} />
+                        <Row label={language === 'fr' ? 'Pension' : language === 'ar' ? 'الإقامة' : 'Board'} value={(() => { const b = resolvedRoomSelections[0]?.boarding || boarding; return b.Code || b.Name; })()} />
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -859,7 +997,7 @@ const HotelBooking = () => {
                             : (language === 'fr' ? 'Confirmer la réservation' : language === 'ar' ? 'تأكيد الحجز' : 'Confirm Booking')
                       }
                     </span>
-                    <span className="font-normal opacity-70">— {totalPrice} {currency}</span>
+                    <span className="font-normal opacity-70">— {resolvedTotalPrice} {currency}</span>
                   </>
                 )}
               </button>
