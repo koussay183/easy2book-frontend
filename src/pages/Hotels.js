@@ -127,9 +127,10 @@ const Hotels = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Infinite scroll — trigger loadMoreHotels when sentinel enters viewport
-  // Uses IntersectionObserver + a window scroll fallback for mobile (iOS Safari quirks
-  // with overflow:hidden ancestors can prevent IntersectionObserver from firing).
+  // Infinite scroll — trigger loadMoreHotels when sentinel nears viewport.
+  // Uses IntersectionObserver + touch/scroll listeners with getBoundingClientRect()
+  // for iOS Safari, which doesn't reliably fire IntersectionObserver when ancestors
+  // have overflow:hidden, and where window.scrollY / scrollHeight can be unreliable.
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
@@ -138,26 +139,30 @@ const Hotels = () => {
       if (hasMore && !loadingMore) loadMoreHotels();
     };
 
-    // Primary: IntersectionObserver (desktop + modern mobile)
+    // Check sentinel position directly — works on ALL browsers including iOS Safari
+    const checkPosition = () => {
+      const rect = el.getBoundingClientRect();
+      const viewH = window.innerHeight || document.documentElement.clientHeight;
+      if (rect.top <= viewH + 600) tryLoad();
+    };
+
+    // Primary: IntersectionObserver (desktop + most mobile browsers)
     const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) tryLoad();
-      },
+      (entries) => { if (entries[0].isIntersecting) tryLoad(); },
       { rootMargin: '400px' }
     );
     observer.observe(el);
 
-    // Fallback: window scroll — fires on every scroll, checks if near page bottom
-    const onScroll = () => {
-      if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 600) {
-        tryLoad();
-      }
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
+    // iOS Safari fallbacks: scroll + touch events with direct position check
+    window.addEventListener('scroll',        checkPosition, { passive: true });
+    document.addEventListener('touchmove',   checkPosition, { passive: true });
+    document.addEventListener('touchend',    checkPosition, { passive: true });
 
     return () => {
       observer.disconnect();
-      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('scroll',        checkPosition);
+      document.removeEventListener('touchmove',   checkPosition);
+      document.removeEventListener('touchend',    checkPosition);
     };
   }, [hasMore, loadingMore, loadMoreHotels]);
 
