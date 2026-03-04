@@ -889,6 +889,7 @@ const HotelDetails = () => {
                   setSearchCheckOut(checkOut);
                 }}
                 language={language}
+                allowNightsMode={true}
               />
             </div>
             <div className="relative md:col-span-2 lg:col-span-1">

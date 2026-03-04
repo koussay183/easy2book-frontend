@@ -345,15 +345,21 @@ const SearchBox = ({
               </div>
 
               {/* Date Range Picker */}
-              <DateRangePicker
-                checkIn={checkInDate}
-                checkOut={checkOutDate}
-                onChange={({ checkIn, checkOut }) => {
-                  setCheckInDate(checkIn);
-                  setCheckOutDate(checkOut);
-                }}
-                language={language}
-              />
+              <div className="w-full">
+                <label className={`block text-xs font-bold text-gray-700 mb-2.5 ${isRTL ? 'text-right' : 'text-left'}`}>
+                  {language === 'fr' ? 'Dates du séjour' : language === 'ar' ? 'تواريخ الإقامة' : 'Stay dates'}
+                </label>
+                <DateRangePicker
+                  checkIn={checkInDate}
+                  checkOut={checkOutDate}
+                  onChange={({ checkIn, checkOut }) => {
+                    setCheckInDate(checkIn);
+                    setCheckOutDate(checkOut);
+                  }}
+                  language={language}
+                  allowNightsMode={true}
+                />
+              </div>
 
               {/* Guest Selector - Full Width */}
               <div className="w-full">

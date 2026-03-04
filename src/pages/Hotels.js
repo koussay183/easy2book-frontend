@@ -565,6 +565,8 @@ const Hotels = () => {
                 )}
               </div>
 
+              <div className="w-px bg-gray-200 my-2.5 flex-shrink-0" />
+
               {/* Dates — DateRangePicker */}
               <div className="flex-[2] min-w-0">
                 <DateRangePicker
@@ -575,7 +577,8 @@ const Hotels = () => {
                     setSearchCheckOut(checkOut);
                   }}
                   language={language}
-                  inputClassName="border-0 rounded-none shadow-none focus:ring-0 h-full"
+                  variant="flush"
+                  allowNightsMode={true}
                 />
               </div>
 
@@ -693,6 +696,7 @@ const Hotels = () => {
                   setSearchCheckOut(checkOut);
                 }}
                 language={language}
+                allowNightsMode={true}
               />
 
               {/* Guests */}
