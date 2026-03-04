@@ -4,7 +4,8 @@ import {
   DollarSign, Clock, CheckCircle2, AlertCircle,
   Banknote, ChevronDown, ChevronUp,
   BarChart3, Receipt, Search, Download, Printer,
-  XCircle, Check, FileText, Puzzle, Eye, EyeOff, ToggleLeft, ToggleRight, Percent
+  XCircle, Check, FileText, Puzzle, Eye, EyeOff, ToggleLeft, ToggleRight,
+  Percent, Wallet, Package, Building
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../config/api';
 
@@ -92,28 +93,42 @@ const MonthlyChart = ({ months }) => {
   return (
     <div className="flex items-end gap-1.5 h-28 px-1">
       {months.map((m, i) => {
-        const heightPct = Math.max((m.total / maxVal) * 100, 3);
-        const paidPct   = m.total > 0 ? (m.paid / m.total) * heightPct : 0;
+        const heightPct  = Math.max((m.total / maxVal) * 100, 3);
+        const marginPct  = m.total > 0 ? ((m.margin || 0) / m.total) * heightPct : 0;
+        const hasCostData = (m.cost || 0) > 0;
         return (
           <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
             {/* Tooltip */}
-            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] rounded-lg px-2 py-1.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg">
-              <div className="font-bold">{MONTH_NAMES[m._id.month - 1]} {m._id.year}</div>
-              <div>{fmtMoney(m.total)} TND · {m.count} rés.</div>
-              <div className="text-green-300">{fmtMoney(m.paid)} payé</div>
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] rounded-lg px-2.5 py-2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl min-w-[130px]">
+              <div className="font-bold mb-1">{MONTH_NAMES[m._id.month - 1]} {m._id.year} · {m.count} rés.</div>
+              <div className="text-blue-300">CA : {fmtMoney(m.total)} TND</div>
+              {hasCostData && <div className="text-orange-300">Coût : {fmtMoney(m.cost)} TND</div>}
+              {hasCostData && <div className="text-green-300">Marge : {fmtMoney(m.margin)} TND</div>}
+              <div className="text-gray-300 mt-1">Payé : {fmtMoney(m.paid)} TND</div>
             </div>
 
             <div className="w-full relative rounded overflow-hidden bg-gray-100" style={{ height: '100px' }}>
-              {/* total bar */}
-              <div
-                className="absolute bottom-0 w-full bg-primary-200 rounded transition-all"
-                style={{ height: `${heightPct}%` }}
-              />
-              {/* paid portion */}
-              <div
-                className="absolute bottom-0 w-full bg-primary-600 rounded transition-all"
-                style={{ height: `${paidPct}%` }}
-              />
+              {hasCostData ? (
+                <>
+                  {/* Cost portion (bottom, orange) */}
+                  <div
+                    className="absolute bottom-0 w-full bg-orange-200 rounded transition-all"
+                    style={{ height: `${heightPct}%` }}
+                  />
+                  {/* Margin portion (top, green) */}
+                  <div
+                    className="absolute bottom-0 w-full bg-emerald-400 rounded transition-all"
+                    style={{ height: `${marginPct}%` }}
+                  />
+                </>
+              ) : (
+                /* Legacy (no cost data): show total + paid split */
+                <>
+                  <div className="absolute bottom-0 w-full bg-primary-200 rounded transition-all" style={{ height: `${heightPct}%` }} />
+                  <div className="absolute bottom-0 w-full bg-primary-600 rounded transition-all"
+                    style={{ height: `${m.total > 0 ? (m.paid / m.total) * heightPct : 0}%` }} />
+                </>
+              )}
             </div>
             <span className="text-[9px] text-gray-400">{MONTH_NAMES[m._id.month - 1]}</span>
           </div>
@@ -418,11 +433,14 @@ const Comptabilite = () => {
   };
 
   /* ── derived KPI ── */
-  const totalRevenue  = summary?.byMethod?.reduce((s, m) => s + m.total,   0) || 0;
-  const totalPending  = summary?.byMethod?.reduce((s, m) => s + m.pending, 0) || 0;
-  const totalPaid     = summary?.byMethod?.reduce((s, m) => s + m.paid,    0) || 0;
-  const totalCount    = summary?.byMethod?.reduce((s, m) => s + m.count,   0) || 0;
-  const totalFailed   = totalRevenue - totalPaid - totalPending;
+  const totalRevenue  = summary?.totals?.totalRevenue  || summary?.byMethod?.reduce((s, m) => s + m.total,   0) || 0;
+  const totalCost     = summary?.totals?.totalCost     || 0;
+  const totalMargin   = summary?.totals?.totalMargin   || 0;
+  const marginPct     = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0;
+  const totalPaid     = summary?.totals?.paidRevenue   || summary?.byMethod?.reduce((s, m) => s + m.paid,    0) || 0;
+  const totalPending  = summary?.totals?.pendingRevenue|| summary?.byMethod?.reduce((s, m) => s + m.pending, 0) || 0;
+  const totalCount    = summary?.totals?.totalCount    || summary?.byMethod?.reduce((s, m) => s + m.count,   0) || 0;
+  const byProvider    = summary?.byProvider || [];
 
   /* ── filtered transactions ── */
   const filtered = useMemo(() => transactions.filter(b => {
@@ -688,15 +706,26 @@ const Comptabilite = () => {
             </div>
           ) : (
             <>
-              {/* ─ KPI cards ─ */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* ─ KPI cards — Row 1: P&L ─ */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                  { label: 'Revenus totaux',  value: fmtMoney(totalRevenue), sub: `${totalCount} rés.`,  icon: TrendingUp,    color: 'text-primary-600', bg: 'bg-primary-50'  },
-                  { label: 'Payé',            value: fmtMoney(totalPaid),    sub: `${((totalPaid/Math.max(totalRevenue,1))*100).toFixed(0)}% du total`, icon: CheckCircle2,  color: 'text-green-600',   bg: 'bg-green-50'    },
-                  { label: 'En attente',      value: fmtMoney(totalPending), sub: 'à encaisser',          icon: Clock,         color: 'text-yellow-600',  bg: 'bg-yellow-50'   },
-                  { label: 'Écart',           value: fmtMoney(Math.max(totalFailed,0)), sub: 'annulé/échoué', icon: XCircle,   color: 'text-red-500',     bg: 'bg-red-50'      },
-                ].map(({ label, value, sub, icon: Ic, color, bg }) => (
-                  <div key={label} className="bg-white rounded-2xl border border-gray-200 p-4">
+                  {
+                    label: "Chiffre d'affaires", value: fmtMoney(totalRevenue),
+                    sub: `${totalCount} réservation${totalCount > 1 ? 's' : ''}`,
+                    icon: Wallet, color: 'text-primary-600', bg: 'bg-primary-50', border: 'border-primary-100',
+                  },
+                  {
+                    label: 'Coût fournisseurs', value: fmtMoney(totalCost),
+                    sub: totalRevenue > 0 ? `${((totalCost / totalRevenue) * 100).toFixed(1)}% du CA` : '—',
+                    icon: Package, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100',
+                  },
+                  {
+                    label: 'Marge brute', value: fmtMoney(totalMargin),
+                    sub: `${marginPct.toFixed(1)}% de marge`,
+                    icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100',
+                  },
+                ].map(({ label, value, sub, icon: Ic, color, bg, border }) => (
+                  <div key={label} className={`bg-white rounded-2xl border ${border} p-4`}>
                     <div className="flex items-center gap-2.5 mb-2.5">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${bg}`}>
                         <Ic size={15} className={color} />
@@ -707,6 +736,137 @@ const Comptabilite = () => {
                     <p className="text-[10px] text-gray-400 mt-0.5">{sub} · TND</p>
                   </div>
                 ))}
+              </div>
+
+              {/* ─ KPI cards — Row 2: cash flow ─ */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  {
+                    label: 'Marge %', value: `${marginPct.toFixed(2)} %`,
+                    sub: `${fmtMoney(totalMargin)} TND gagnés`,
+                    icon: Percent, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100',
+                  },
+                  {
+                    label: 'Déjà encaissé', value: fmtMoney(totalPaid),
+                    sub: `${totalRevenue > 0 ? ((totalPaid / totalRevenue) * 100).toFixed(0) : 0}% du CA`,
+                    icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100',
+                  },
+                  {
+                    label: 'En attente', value: fmtMoney(totalPending),
+                    sub: 'à encaisser',
+                    icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-100',
+                  },
+                ].map(({ label, value, sub, icon: Ic, color, bg, border }) => (
+                  <div key={label} className={`bg-white rounded-2xl border ${border} p-4`}>
+                    <div className="flex items-center gap-2.5 mb-2.5">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${bg}`}>
+                        <Ic size={15} className={color} />
+                      </div>
+                      <p className="text-xs font-medium text-gray-500 leading-tight">{label}</p>
+                    </div>
+                    <p className="text-xl font-bold text-gray-900" dir="ltr">{value}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{sub} · TND</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* ─ Provider P&L breakdown ─ */}
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+                    <Building size={14} className="text-primary-600" /> P&amp;L par fournisseur
+                  </h3>
+                  <span className="text-[10px] text-gray-400 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
+                    Acheté → Vendu → Marge
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-[11px] text-gray-400 uppercase tracking-wide">
+                      <tr>
+                        <th className="px-5 py-3 text-left font-medium">Fournisseur</th>
+                        <th className="px-4 py-3 text-right font-medium">Réservations</th>
+                        <th className="px-4 py-3 text-right font-medium">Acheté (coût)</th>
+                        <th className="px-4 py-3 text-right font-medium">Vendu (CA)</th>
+                        <th className="px-4 py-3 text-right font-medium">Marge brute</th>
+                        <th className="px-4 py-3 text-right font-medium">Marge %</th>
+                        <th className="px-4 py-3 text-right font-medium">Payé CA</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {byProvider.length === 0 ? (
+                        <tr><td colSpan={7} className="px-5 py-8 text-center text-xs text-gray-400">Aucune donnée</td></tr>
+                      ) : (
+                        <>
+                          {byProvider.map(p => {
+                            const mPct = p.revenue > 0 ? (p.margin / p.revenue) * 100 : 0;
+                            return (
+                              <tr key={p._id} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-5 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center">
+                                      <Building size={12} className="text-primary-600" />
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-bold text-gray-800 uppercase">{p._id}</p>
+                                      <p className="text-[10px] text-gray-400">{p.bookings} rés.</p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-right text-xs font-semibold text-gray-700 tabular-nums">{p.bookings}</td>
+                                <td className="px-4 py-3 text-right tabular-nums" dir="ltr">
+                                  <span className="text-sm font-bold text-orange-700">{fmtMoney(p.cost)}</span>
+                                  <span className="text-[10px] text-gray-400 ml-1">TND</span>
+                                </td>
+                                <td className="px-4 py-3 text-right tabular-nums" dir="ltr">
+                                  <span className="text-sm font-bold text-gray-900">{fmtMoney(p.revenue)}</span>
+                                  <span className="text-[10px] text-gray-400 ml-1">TND</span>
+                                </td>
+                                <td className="px-4 py-3 text-right tabular-nums" dir="ltr">
+                                  <span className={`text-sm font-bold ${p.margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmtMoney(p.margin)}</span>
+                                  <span className="text-[10px] text-gray-400 ml-1">TND</span>
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${mPct >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                                    {mPct.toFixed(1)}%
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-right tabular-nums text-xs text-gray-600" dir="ltr">
+                                  {fmtMoney(p.paidRevenue)} TND
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {/* Totals row */}
+                          <tr className="bg-gray-50 font-semibold border-t-2 border-gray-200">
+                            <td className="px-5 py-3 text-xs text-gray-600 font-bold">Total</td>
+                            <td className="px-4 py-3 text-right text-xs text-gray-700 tabular-nums">{totalCount}</td>
+                            <td className="px-4 py-3 text-right tabular-nums" dir="ltr">
+                              <span className="text-sm font-bold text-orange-700">{fmtMoney(totalCost)}</span>
+                              <span className="text-[10px] text-gray-400 ml-1">TND</span>
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums" dir="ltr">
+                              <span className="text-sm font-bold text-gray-900">{fmtMoney(totalRevenue)}</span>
+                              <span className="text-[10px] text-gray-400 ml-1">TND</span>
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums" dir="ltr">
+                              <span className="text-sm font-bold text-emerald-600">{fmtMoney(totalMargin)}</span>
+                              <span className="text-[10px] text-gray-400 ml-1">TND</span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700">
+                                {marginPct.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums text-xs font-bold text-gray-700" dir="ltr">
+                              {fmtMoney(totalPaid)} TND
+                            </td>
+                          </tr>
+                        </>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               {/* ─ Chart + Method breakdown ─ */}
@@ -722,8 +882,9 @@ const Comptabilite = () => {
                   </div>
                   <MonthlyChart months={monthlyData} />
                   <div className="flex items-center gap-4 mt-3 text-[10px] text-gray-400">
-                    <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded bg-primary-600 inline-block" /> Payé</span>
-                    <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded bg-primary-200 inline-block" /> En attente</span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded bg-emerald-400 inline-block" /> Marge</span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded bg-orange-200 inline-block" /> Coût fournisseur</span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded bg-primary-200 inline-block" /> Total (sans données coût)</span>
                   </div>
                 </div>
 
@@ -859,7 +1020,9 @@ const Comptabilite = () => {
                           <th className="px-4 py-3 text-left font-medium">Méthode</th>
                           <th className="px-4 py-3 text-left font-medium">Paiement</th>
                           <th className="px-4 py-3 text-left font-medium">Statut</th>
-                          <th className="px-4 py-3 text-right font-medium">Montant</th>
+                          <th className="px-4 py-3 text-right font-medium">CA (vendu)</th>
+                          <th className="px-4 py-3 text-right font-medium">Coût</th>
+                          <th className="px-4 py-3 text-right font-medium">Marge</th>
                           <th className="px-5 py-3 text-left font-medium">Date</th>
                           <th className="px-4 py-3 text-center font-medium">Actions</th>
                         </tr>
@@ -886,6 +1049,20 @@ const Comptabilite = () => {
                             </td>
                             <td className="px-4 py-3 text-right font-bold text-gray-900 text-sm tabular-nums" dir="ltr">
                               {fmtMoney(b.totalPrice)} <span className="text-[10px] font-normal text-gray-400">{b.currency || 'TND'}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums text-xs" dir="ltr">
+                              {b.providerPrice > 0
+                                ? <span className="text-orange-700 font-semibold">{fmtMoney(b.providerPrice)}</span>
+                                : <span className="text-gray-300">—</span>
+                              }
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums text-xs" dir="ltr">
+                              {b.margin > 0
+                                ? <span className="text-emerald-600 font-semibold">+{fmtMoney(b.margin)}</span>
+                                : b.margin < 0
+                                  ? <span className="text-red-600 font-semibold">{fmtMoney(b.margin)}</span>
+                                  : <span className="text-gray-300">—</span>
+                              }
                             </td>
                             <td className="px-5 py-3 text-xs text-gray-400">{fmtDate(b.createdAt)}</td>
                             <td className="px-4 py-3">
