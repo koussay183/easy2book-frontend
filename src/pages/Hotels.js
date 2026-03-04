@@ -1,8 +1,9 @@
  import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, Users, ArrowLeft, Loader2, AlertCircle, Hotel as HotelIcon, Search, SlidersHorizontal, Star, DollarSign, Utensils, X, Check, Moon, Plus, Minus } from 'lucide-react';
+import { MapPin, Users, ArrowLeft, Loader2, AlertCircle, Hotel as HotelIcon, Search, SlidersHorizontal, Star, DollarSign, Utensils, X, Check } from 'lucide-react';
 import HotelResultCard from '../components/hotels/HotelResultCard';
 import GuestSelector from '../components/landing/GuestSelector';
+import DateRangePicker from '../components/DateRangePicker';
 import { useLanguage } from '../context/LanguageContext';
 import { useHotels } from '../context/HotelsContext';
 
@@ -83,14 +84,6 @@ const Hotels = () => {
   const [searchCheckOut, setSearchCheckOut] = useState(checkOut || '');
   const [searchRoomsConfig, setSearchRoomsConfig] = useState(roomsConfig);
   const [searchRooms, setSearchRooms] = useState(Number(rooms));
-  const [dateMode, setDateMode] = useState('checkout'); // 'checkout' | 'nights'
-  const [searchNights, setSearchNights] = useState(() => {
-    if (checkIn && checkOut) {
-      const n = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
-      return n > 0 ? n : 2;
-    }
-    return 2;
-  });
 
   // Header destination autocomplete
   const [headerDest, setHeaderDest] = useState(cityName || '');
@@ -341,14 +334,7 @@ const Hotels = () => {
     return hotel.Price || hotel.MinPrice || 0;
   };
 
-  const computeCheckOut = (checkInVal) => {
-    if (dateMode === 'nights' && checkInVal && searchNights > 0) {
-      const d = new Date(checkInVal);
-      d.setDate(d.getDate() + searchNights);
-      return d.toISOString().split('T')[0];
-    }
-    return searchCheckOut;
-  };
+  const computeCheckOut = () => searchCheckOut;
 
   const handleHeaderCitySelect = (city) => {
     setHeaderDest(city.name);
@@ -360,7 +346,7 @@ const Hotels = () => {
   const handleSearch = () => {
     const targetCityId = headerCity?.id || cityId;
     const targetCityName = headerCity?.name || searchCityName;
-    const out = computeCheckOut(searchCheckIn);
+    const out = computeCheckOut();
 
     const params = new URLSearchParams();
     if (targetCityId) params.set('cityId', String(targetCityId));
@@ -579,72 +565,18 @@ const Hotels = () => {
                 )}
               </div>
 
-              <div className="w-px bg-gray-200 my-2.5 flex-shrink-0" />
-
-              {/* Check-in */}
-              <div className="flex-1 min-w-0 px-4 py-3.5">
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                  {language === 'fr' ? 'Arrivée' : language === 'ar' ? 'الوصول' : 'Check-in'}
-                </div>
-                <div className={`flex items-center gap-2 overflow-hidden ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <Calendar size={13} className="text-gray-400 flex-shrink-0" />
-                  <input
-                    type="date"
-                    value={searchCheckIn}
-                    onChange={e => setSearchCheckIn(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full min-w-0 appearance-none"
-                  />
-                </div>
-              </div>
-
-              <div className="w-px bg-gray-200 my-2.5 flex-shrink-0" />
-
-              {/* Check-out / Nights */}
-              <div className="flex-1 min-w-0 px-4 py-3.5">
-                <div className={`flex items-center gap-1 mb-1.5 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <button
-                    type="button"
-                    onClick={() => setDateMode('checkout')}
-                    className={`flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md transition-all ${dateMode === 'checkout' ? 'bg-primary-700 text-white' : 'text-gray-400 hover:text-gray-600'}`}
-                  >
-                    <Calendar size={9} />
-                    {language === 'fr' ? 'Départ' : language === 'ar' ? 'مغادرة' : 'Out'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDateMode('nights')}
-                    className={`flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md transition-all ${dateMode === 'nights' ? 'bg-primary-700 text-white' : 'text-gray-400 hover:text-gray-600'}`}
-                  >
-                    <Moon size={9} />
-                    {language === 'fr' ? 'Nuits' : language === 'ar' ? 'ليالي' : 'Nights'}
-                  </button>
-                </div>
-                {dateMode === 'checkout' ? (
-                  <div className={`flex items-center gap-2 overflow-hidden ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <Calendar size={13} className="text-gray-400 flex-shrink-0" />
-                    <input
-                      type="date"
-                      value={searchCheckOut}
-                      onChange={e => setSearchCheckOut(e.target.value)}
-                      min={searchCheckIn || new Date().toISOString().split('T')[0]}
-                      className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full min-w-0 appearance-none"
-                    />
-                  </div>
-                ) : (
-                  <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <button type="button" onClick={() => setSearchNights(n => Math.max(1, n - 1))} className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors flex-shrink-0">
-                      <Minus size={11} />
-                    </button>
-                    <span className="text-sm font-bold text-primary-700 min-w-[2ch] text-center">{searchNights}</span>
-                    <span className="text-xs text-gray-500">
-                      {language === 'fr' ? (searchNights === 1 ? 'nuit' : 'nuits') : language === 'ar' ? (searchNights === 1 ? 'ليلة' : 'ليالي') : (searchNights === 1 ? 'night' : 'nights')}
-                    </span>
-                    <button type="button" onClick={() => setSearchNights(n => Math.min(30, n + 1))} className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors flex-shrink-0">
-                      <Plus size={11} />
-                    </button>
-                  </div>
-                )}
+              {/* Dates — DateRangePicker */}
+              <div className="flex-[2] min-w-0">
+                <DateRangePicker
+                  checkIn={searchCheckIn}
+                  checkOut={searchCheckOut}
+                  onChange={({ checkIn, checkOut }) => {
+                    setSearchCheckIn(checkIn);
+                    setSearchCheckOut(checkOut);
+                  }}
+                  language={language}
+                  inputClassName="border-0 rounded-none shadow-none focus:ring-0 h-full"
+                />
               </div>
 
               <div className="w-px bg-gray-200 my-2.5 flex-shrink-0" />
@@ -752,71 +684,16 @@ const Hotels = () => {
                 )}
               </div>
 
-              {/* Check-in */}
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
-                  {language === 'fr' ? 'Arrivée' : language === 'ar' ? 'الوصول' : 'Check-in'}
-                </label>
-                <div className="flex items-center gap-2 overflow-hidden border-2 border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-primary-500 transition-colors">
-                  <Calendar size={14} className="text-gray-400 flex-shrink-0" />
-                  <input
-                    type="date"
-                    value={searchCheckIn}
-                    onChange={e => setSearchCheckIn(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full min-w-0 appearance-none"
-                  />
-                </div>
-              </div>
-
-              {/* Check-out / Nights */}
-              <div>
-                <div className={`flex items-center gap-2 mb-1.5 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <button
-                    type="button"
-                    onClick={() => setDateMode('checkout')}
-                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg transition-all ${dateMode === 'checkout' ? 'bg-primary-700 text-white' : 'text-gray-400 bg-gray-100'}`}
-                  >
-                    <Calendar size={9} />
-                    {language === 'fr' ? 'Départ' : language === 'ar' ? 'مغادرة' : 'Check-out'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDateMode('nights')}
-                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg transition-all ${dateMode === 'nights' ? 'bg-primary-700 text-white' : 'text-gray-400 bg-gray-100'}`}
-                  >
-                    <Moon size={9} />
-                    {language === 'fr' ? 'Nuits' : language === 'ar' ? 'ليالي' : 'Nights'}
-                  </button>
-                </div>
-                {dateMode === 'checkout' ? (
-                  <div className="flex items-center gap-2 overflow-hidden border-2 border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-primary-500 transition-colors">
-                    <Calendar size={14} className="text-gray-400 flex-shrink-0" />
-                    <input
-                      type="date"
-                      value={searchCheckOut}
-                      onChange={e => setSearchCheckOut(e.target.value)}
-                      min={searchCheckIn || new Date().toISOString().split('T')[0]}
-                      className="bg-transparent text-sm font-semibold text-gray-800 outline-none w-full min-w-0 appearance-none"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 border-2 border-gray-200 rounded-xl px-3 py-2.5">
-                    <button type="button" onClick={() => setSearchNights(n => Math.max(1, n - 1))}
-                      className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center flex-shrink-0 transition-colors">
-                      <Minus size={12} />
-                    </button>
-                    <span className="text-base font-bold text-primary-700 min-w-[2ch] text-center">{searchNights}</span>
-                    <span className="text-sm text-gray-500 flex-1">
-                      {language === 'fr' ? (searchNights === 1 ? 'nuit' : 'nuits') : language === 'ar' ? (searchNights === 1 ? 'ليلة' : 'ليالي') : (searchNights === 1 ? 'night' : 'nights')}
-                    </span>
-                    <button type="button" onClick={() => setSearchNights(n => Math.min(30, n + 1))}
-                      className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center flex-shrink-0 transition-colors">
-                      <Plus size={12} />
-                    </button>
-                  </div>
-                )}
-              </div>
+              {/* Dates — DateRangePicker */}
+              <DateRangePicker
+                checkIn={searchCheckIn}
+                checkOut={searchCheckOut}
+                onChange={({ checkIn, checkOut }) => {
+                  setSearchCheckIn(checkIn);
+                  setSearchCheckOut(checkOut);
+                }}
+                language={language}
+              />
 
               {/* Guests */}
               <div>

@@ -14,6 +14,7 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { useHotels } from '../context/HotelsContext';
 import GuestSelector from '../components/landing/GuestSelector';
+import DateRangePicker from '../components/DateRangePicker';
 import { API_ENDPOINTS } from '../config/api';
 import useTripAdvisor from '../hooks/useTripAdvisor';
 import tripadvisorLogo from '../assets/images/tripadvasor_logo.png';
@@ -879,26 +880,15 @@ const HotelDetails = () => {
             <span>{language === 'fr' ? 'Vérifier la disponibilité' : language === 'ar' ? 'تحقق من التوفر' : 'Check Availability'}</span>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                {language === 'fr' ? 'Arrivée' : language === 'ar' ? 'الوصول' : 'Check-in'}
-              </label>
-              <input
-                type="date"
-                value={searchCheckIn}
-                onChange={(e) => setSearchCheckIn(e.target.value)}
-                className="w-full min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                {language === 'fr' ? 'Départ' : language === 'ar' ? 'المغادرة' : 'Check-out'}
-              </label>
-              <input
-                type="date"
-                value={searchCheckOut}
-                onChange={(e) => setSearchCheckOut(e.target.value)}
-                className="w-full min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            <div className="md:col-span-2">
+              <DateRangePicker
+                checkIn={searchCheckIn}
+                checkOut={searchCheckOut}
+                onChange={({ checkIn, checkOut }) => {
+                  setSearchCheckIn(checkIn);
+                  setSearchCheckOut(checkOut);
+                }}
+                language={language}
               />
             </div>
             <div className="relative md:col-span-2 lg:col-span-1">
