@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin, Star, ChevronRight, Utensils, ThumbsUp, Clock, BadgePercent, Flame } from 'lucide-react';
+import { MapPin, Star, ChevronRight, Utensils, ThumbsUp, Clock, BadgePercent, Flame, Baby } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import useTripAdvisor from '../../hooks/useTripAdvisor';
@@ -71,6 +71,10 @@ const HotelResultCard = ({ hotel, checkIn, checkOut, roomsConfig }) => {
 
   /* ── Recommended ── */
   const recommended = hotel.SearchData?.Recommended || 0;
+
+  /* ── Free child ── */
+  const freeChild = hotel.SearchData?.FreeChild;
+  const hasFreeChild = Array.isArray(freeChild) && freeChild.length > 0;
 
   /* ── Promo ── */
   const hasDiscount    = pricing && pricing.discountPct >= 5;
@@ -245,6 +249,20 @@ const HotelResultCard = ({ hotel, checkIn, checkOut, roomsConfig }) => {
                     {b.Code}
                   </span>
                 ))}
+              </div>
+            )}
+
+            {/* Free baby badge */}
+            {hasFreeChild && (
+              <div className={`flex items-center gap-1.5 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <span className="inline-flex items-center gap-1.5 bg-pink-50 border border-pink-200 text-pink-700 text-xs font-bold px-2.5 py-1 rounded-lg">
+                  <Baby size={12} className="flex-shrink-0" />
+                  {language === 'fr'
+                    ? `1er bébé gratuit (≤${freeChild[0].Age} ans)`
+                    : language === 'ar'
+                    ? `أول طفل مجانًا (≤${freeChild[0].Age} سنة)`
+                    : `1st baby free (≤${freeChild[0].Age} yrs)`}
+                </span>
               </div>
             )}
 
