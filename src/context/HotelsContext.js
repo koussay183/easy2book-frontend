@@ -181,6 +181,8 @@ export const HotelsProvider = ({ children }) => {
       }
     } catch (err) {
       console.error('Error loading more hotels:', err);
+      // Stop infinite scroll from retrying on error — prevents request loop
+      setHasMore(false);
     } finally {
       setLoadingMore(false);
       loadingMoreSyncRef.current = false;
