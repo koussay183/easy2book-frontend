@@ -127,43 +127,28 @@ const Hotels = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Infinite scroll — trigger loadMoreHotels when sentinel nears viewport.
-  // Uses IntersectionObserver + touch/scroll listeners with getBoundingClientRect()
-  // for iOS Safari, which doesn't reliably fire IntersectionObserver when ancestors
-  // have overflow:hidden, and where window.scrollY / scrollHeight can be unreliable.
+  // Infinite scroll — poll every 300ms to check if sentinel is in viewport.
+  // Polling with getBoundingClientRect() is the most reliable approach for
+  // iOS Safari, which has known issues with IntersectionObserver and scroll
+  // events when inside complex flex layouts.
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el) return;
+    if (!el || !hasMore || loadingMore) return;
 
-    const tryLoad = () => {
-      if (hasMore && !loadingMore) loadMoreHotels();
-    };
-
-    // Check sentinel position directly — works on ALL browsers including iOS Safari
-    const checkPosition = () => {
+    const check = () => {
       const rect = el.getBoundingClientRect();
       const viewH = window.innerHeight || document.documentElement.clientHeight;
-      if (rect.top <= viewH + 600) tryLoad();
+      if (rect.top < viewH + 400) {
+        loadMoreHotels();
+      }
     };
 
-    // Primary: IntersectionObserver (desktop + most mobile browsers)
-    const observer = new IntersectionObserver(
-      (entries) => { if (entries[0].isIntersecting) tryLoad(); },
-      { rootMargin: '400px' }
-    );
-    observer.observe(el);
+    // Check immediately (handles case where all loaded hotels fit on screen)
+    check();
 
-    // iOS Safari fallbacks: scroll + touch events with direct position check
-    window.addEventListener('scroll',        checkPosition, { passive: true });
-    document.addEventListener('touchmove',   checkPosition, { passive: true });
-    document.addEventListener('touchend',    checkPosition, { passive: true });
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('scroll',        checkPosition);
-      document.removeEventListener('touchmove',   checkPosition);
-      document.removeEventListener('touchend',    checkPosition);
-    };
+    // Poll every 300ms — works on all browsers regardless of scroll container
+    const interval = setInterval(check, 300);
+    return () => clearInterval(interval);
   }, [hasMore, loadingMore, loadMoreHotels]);
 
   // Scroll to first newly loaded hotel after each batch
