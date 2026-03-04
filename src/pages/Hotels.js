@@ -899,7 +899,7 @@ const Hotels = () => {
           </div>
         )}
 
-        <div className="flex gap-8 w-full min-w-0 overflow-hidden">
+        <div className="flex gap-8 w-full min-w-0">
           {/* Guest Selector Modal */}
           {showGuestSelector && (
             <>
@@ -1093,7 +1093,7 @@ const Hotels = () => {
           )}
 
           {/* Results */}
-          <div className={`flex-1 min-w-0 w-full overflow-hidden ${isRTL ? 'order-1' : ''}`}>
+          <div className={`flex-1 min-w-0 w-full ${isRTL ? 'order-1' : ''}`}>
             {loading ? (
               <div className="flex flex-col items-center justify-center py-20">
                 <Loader2 size={48} className="text-primary-700 animate-spin mb-4" />
