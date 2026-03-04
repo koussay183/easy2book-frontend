@@ -102,6 +102,15 @@ const Hotels = () => {
   const sentinelRef          = useRef(null);
   const prevFilteredCountRef = useRef(0);
 
+  // Live refs — always current, readable inside the permanent polling interval
+  // without causing it to restart on every state change.
+  const hasMoreRef       = useRef(hasMore);
+  const loadingMoreRef   = useRef(loadingMore);
+  const loadMoreHotelsRef = useRef(loadMoreHotels);
+  hasMoreRef.current       = hasMore;
+  loadingMoreRef.current   = loadingMore;
+  loadMoreHotelsRef.current = loadMoreHotels;
+
   // Build city suggestions for header destination dropdown
   useEffect(() => {
     const q = headerDest.trim().toLowerCase();
@@ -127,29 +136,21 @@ const Hotels = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Infinite scroll — poll every 300ms to check if sentinel is in viewport.
-  // Polling with getBoundingClientRect() is the most reliable approach for
-  // iOS Safari, which has known issues with IntersectionObserver and scroll
-  // events when inside complex flex layouts.
+  // Infinite scroll — single permanent interval, reads live state via refs.
+  // Never restarts on state changes, so it's immune to stale-closure and
+  // teardown/restart timing bugs (the previous cause of mobile failures).
   useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || !hasMore || loadingMore) return;
-
-    const check = () => {
+    const interval = setInterval(() => {
+      const el = sentinelRef.current;
+      if (!el || !hasMoreRef.current || loadingMoreRef.current) return;
       const rect = el.getBoundingClientRect();
       const viewH = window.innerHeight || document.documentElement.clientHeight;
-      if (rect.top < viewH + 400) {
-        loadMoreHotels();
+      if (rect.top < viewH + 500) {
+        loadMoreHotelsRef.current();
       }
-    };
-
-    // Check immediately (handles case where all loaded hotels fit on screen)
-    check();
-
-    // Poll every 300ms — works on all browsers regardless of scroll container
-    const interval = setInterval(check, 300);
+    }, 200);
     return () => clearInterval(interval);
-  }, [hasMore, loadingMore, loadMoreHotels]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll to first newly loaded hotel after each batch
   useEffect(() => {
