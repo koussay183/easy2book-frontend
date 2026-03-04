@@ -10,10 +10,9 @@ import { API_ENDPOINTS } from '../../config/api';
 // ─────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────
-const CATEGORY_LABELS = { umrah: 'Omra', hajj: 'Hajj', umrah_plus: 'Omra Plus' };
+const CATEGORY_LABELS = { umrah: 'Omra', umrah_plus: 'Omra Plus' };
 const CATEGORY_STYLES = {
   umrah:      'bg-emerald-100 text-emerald-700 border-emerald-200',
-  hajj:       'bg-amber-100  text-amber-700  border-amber-200',
   umrah_plus: 'bg-purple-100 text-purple-700 border-purple-200'
 };
 const STATUS_STYLES = {
@@ -253,7 +252,6 @@ const OfferModal = ({ offer, onClose, onSaved }) => {
                     <label className={labelCls}>Catégorie</label>
                     <select value={form.category} onChange={(e) => set('category', e.target.value)} className={inputCls}>
                       <option value="umrah">Omra</option>
-                      <option value="hajj">Hajj</option>
                       <option value="umrah_plus">Omra Plus</option>
                     </select>
                   </div>
@@ -775,7 +773,6 @@ const OmraManager = () => {
                 {[
                   { id: 'all',       label: 'Toutes' },
                   { id: 'umrah',     label: 'Omra' },
-                  { id: 'hajj',      label: 'Hajj' },
                   { id: 'umrah_plus', label: 'Omra Plus' }
                 ].map((f) => (
                   <button key={f.id} onClick={() => setCategoryFilter(f.id)}

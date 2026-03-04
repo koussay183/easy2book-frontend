@@ -7,19 +7,19 @@ import { useAuth } from '../../context/AuthContext';
 
 const T = {
   fr: {
-    hotels: 'Hôtels', omra: 'Omra & Hajj', packages: 'Forfaits', new: 'Nouveau',
+    hotels: 'Hôtels', omra: 'Omra', packages: 'Forfaits', new: 'Nouveau',
     profile: 'Mon Profil', bookings: 'Mes Réservations',
     login: 'Connexion', register: 'S\'inscrire', logout: 'Déconnexion',
     help: 'Besoin d\'aide ?', call: 'Appelez-nous',
   },
   ar: {
-    hotels: 'الفنادق', omra: 'عمرة وحج', packages: 'الباقات السياحية', new: 'جديد',
+    hotels: 'الفنادق', omra: 'عمرة', packages: 'الباقات السياحية', new: 'جديد',
     profile: 'ملفي الشخصي', bookings: 'حجوزاتي',
     login: 'تسجيل الدخول', register: 'إنشاء حساب', logout: 'تسجيل الخروج',
     help: 'هل تحتاج للمساعدة؟', call: 'اتصل بنا',
   },
   en: {
-    hotels: 'Hotels', omra: 'Umrah & Hajj', packages: 'Packages', new: 'New',
+    hotels: 'Hotels', omra: 'Umrah', packages: 'Packages', new: 'New',
     profile: 'My Profile', bookings: 'My Bookings',
     login: 'Sign In', register: 'Sign Up', logout: 'Sign Out',
     help: 'Need help?', call: 'Call us',

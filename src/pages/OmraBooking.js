@@ -140,9 +140,9 @@ const T = {
 };
 
 const CATEGORY_LABELS = {
-  fr: { umrah: 'Omra', hajj: 'Hajj', umrah_plus: 'Omra Plus' },
-  ar: { umrah: 'عمرة', hajj: 'حج', umrah_plus: 'عمرة بلس' },
-  en: { umrah: 'Umrah', hajj: 'Hajj', umrah_plus: 'Umrah Plus' },
+  fr: { umrah: 'Omra', umrah_plus: 'Omra Plus' },
+  ar: { umrah: 'عمرة', umrah_plus: 'عمرة بلس' },
+  en: { umrah: 'Umrah', umrah_plus: 'Umrah Plus' },
 };
 
 const fmt = (d, lang) => {

@@ -462,7 +462,7 @@ const SearchBox = ({
               </div>
               <div className={isRTL ? 'text-right' : 'text-left'}>
                 <h3 className="text-lg font-bold text-gray-900">
-                  {language === 'fr' ? 'Omra & Hajj' : language === 'ar' ? 'عمرة وحج' : 'Omra & Hajj'}
+                  {language === 'fr' ? 'Omra' : language === 'ar' ? 'عمرة' : 'Umrah'}
                 </h3>
                 <p className="text-sm text-gray-500">
                   {language === 'fr' ? 'Forfaits complets depuis la Tunisie' : language === 'ar' ? 'باقات متكاملة من تونس' : 'Complete packages from Tunisia'}
@@ -475,10 +475,9 @@ const SearchBox = ({
               <label className={`block text-xs font-bold text-gray-700 mb-2.5 ${isRTL ? 'text-right' : 'text-left'}`}>
                 {language === 'fr' ? 'Type de voyage' : language === 'ar' ? 'نوع الرحلة' : 'Trip type'}
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {[
                   { id: 'umrah', label: language === 'fr' ? 'Omra' : language === 'ar' ? 'عمرة' : 'Umrah', desc: language === 'fr' ? 'Toute l\'année' : language === 'ar' ? 'طوال العام' : 'Year-round' },
-                  { id: 'hajj', label: language === 'fr' ? 'Hajj' : language === 'ar' ? 'حج' : 'Hajj', desc: language === 'fr' ? 'Saison annuelle' : language === 'ar' ? 'موسم سنوي' : 'Annual season' },
                   { id: 'umrah_plus', label: language === 'fr' ? 'Omra Plus' : language === 'ar' ? 'عمرة بلس' : 'Umrah Plus', desc: language === 'fr' ? 'Premium 5★' : language === 'ar' ? 'فاخر 5★' : 'Premium 5★' }
                 ].map((cat) => (
                   <button

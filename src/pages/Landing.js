@@ -316,12 +316,12 @@ const Landing = () => {
         </section>
       )}
 
-      {/* ── Omra & Hajj ── */}
+      {/* ── Omra ── */}
       <section className="py-8 md:py-12 px-4 bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="container mx-auto max-w-6xl">
           <SectionHeader
             icon={Mountain}
-            title={language === 'fr' ? 'Omra & Hajj' : language === 'ar' ? 'عمرة وحج' : 'Omra & Hajj'}
+            title={language === 'fr' ? 'Omra' : language === 'ar' ? 'عمرة' : 'Umrah'}
             subtitle={language === 'fr' ? 'Forfaits spirituels depuis la Tunisie' : language === 'ar' ? 'باقات روحية من تونس' : 'Spiritual packages from Tunisia'}
             linkTo="/omra"
             showLink={true}
@@ -341,10 +341,10 @@ const Landing = () => {
               </h3>
               <p className="text-gray-500 text-sm mb-5 max-w-sm mx-auto">
                 {language === 'fr'
-                  ? 'Nos prochains forfaits Omra et Hajj seront bientôt disponibles.'
+                  ? 'Nos prochains forfaits Omra seront bientôt disponibles.'
                   : language === 'ar'
-                  ? 'ستكون باقات العمرة والحج القادمة متاحة قريباً.'
-                  : 'Our upcoming Omra and Hajj packages will be available soon.'}
+                  ? 'ستكون باقات العمرة القادمة متاحة قريباً.'
+                  : 'Our upcoming Umrah packages will be available soon.'}
               </p>
               <Link
                 to="/omra"
@@ -361,10 +361,9 @@ const Landing = () => {
                 const isFull = spotsLeft === 0;
                 const catColors = {
                   umrah: 'bg-primary-50 text-primary-700',
-                  hajj: 'bg-secondary-100 text-secondary-700',
                   umrah_plus: 'bg-accent-50 text-accent-700'
                 };
-                const catLabels = { umrah: 'Omra', hajj: 'Hajj', umrah_plus: 'Omra Plus' };
+                const catLabels = { umrah: 'Omra', umrah_plus: 'Omra Plus' };
                 return (
                   <Link
                     key={offer._id}
@@ -427,7 +426,7 @@ const Landing = () => {
                     ? `+${omraOffers.length - 3} ${language === 'fr' ? 'autres offres' : language === 'ar' ? 'عروض أخرى' : 'more offers'}`
                     : (language === 'fr' ? 'Voir toutes les offres' : language === 'ar' ? 'عرض جميع العروض' : 'View all offers')}
                 </p>
-                <p className="text-gray-400 text-xs mt-1">Omra & Hajj</p>
+                <p className="text-gray-400 text-xs mt-1">Omra</p>
               </Link>
             </div>
           )}

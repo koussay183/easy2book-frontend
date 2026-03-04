@@ -11,9 +11,9 @@ const defaultImage = 'https://images.unsplash.com/photo-1580418827493-f2b22c0a76
 
 const T = {
   fr: {
-    title: 'Omra & Hajj',
+    title: 'Omra',
     subtitle: 'Forfaits complets depuis la Tunisie — vol, hébergement et guide inclus.',
-    all: 'Toutes', umrah: 'Omra', hajj: 'Hajj', umrah_plus: 'Omra Plus',
+    all: 'Toutes', umrah: 'Omra', umrah_plus: 'Omra Plus',
     offers: (n) => `${n} offre${n > 1 ? 's' : ''}`,
     days: 'j', spots: 'places', per: '/ pers.',
     book: 'Réserver', full: 'Complet', featured: 'Vedette',
@@ -27,9 +27,9 @@ const T = {
     trust3: 'Accompagnement', trust3d: 'Guide dédié tout au long du voyage',
   },
   ar: {
-    title: 'عمرة وحج',
+    title: 'عمرة',
     subtitle: 'باقات متكاملة من تونس — طيران وإقامة ومرشد مشمولون.',
-    all: 'الكل', umrah: 'عمرة', hajj: 'حج', umrah_plus: 'عمرة بلس',
+    all: 'الكل', umrah: 'عمرة', umrah_plus: 'عمرة بلس',
     offers: (n) => `${n} عرض`,
     days: 'ي', spots: 'مقاعد', per: '/ ش.',
     book: 'احجز', full: 'مكتمل', featured: 'مميز',
@@ -43,9 +43,9 @@ const T = {
     trust3: 'مرافقة متخصصة', trust3d: 'مرشدون متخصصون طوال الرحلة',
   },
   en: {
-    title: 'Umrah & Hajj',
+    title: 'Umrah',
     subtitle: 'Complete packages from Tunisia — flight, accommodation & guide included.',
-    all: 'All', umrah: 'Umrah', hajj: 'Hajj', umrah_plus: 'Umrah Plus',
+    all: 'All', umrah: 'Umrah', umrah_plus: 'Umrah Plus',
     offers: (n) => `${n} offer${n > 1 ? 's' : ''}`,
     days: 'd', spots: 'spots', per: '/ pax',
     book: 'Book', full: 'Full', featured: 'Featured',
@@ -62,7 +62,6 @@ const T = {
 
 const CATEGORY_COLORS = {
   umrah:      'bg-primary-50 text-primary-700 border-primary-200',
-  hajj:       'bg-secondary-100 text-secondary-700 border-secondary-300',
   umrah_plus: 'bg-accent-50 text-accent-700 border-accent-200'
 };
 
@@ -165,7 +164,7 @@ const Omra = () => {
   const isRTL                 = language === 'ar';
   const t                     = T[language] || T.fr;
 
-  const validCategories = ['umrah', 'hajj', 'umrah_plus'];
+  const validCategories = ['umrah', 'umrah_plus'];
   const catFromUrl      = searchParams.get('category');
 
   const [offers,          setOffers]         = useState([]);
@@ -199,7 +198,6 @@ const Omra = () => {
   const categories = [
     { id: 'all',        label: t.all },
     { id: 'umrah',      label: t.umrah },
-    { id: 'hajj',       label: t.hajj },
     { id: 'umrah_plus', label: t.umrah_plus }
   ];
 

@@ -187,7 +187,7 @@ const AdminDashboard = () => {
     { id: 'overview',      label: 'Vue d\'ensemble', icon: LayoutDashboard },
     { id: 'bookings',      label: 'Réservations',    icon: Calendar },
     { id: 'users',         label: 'Utilisateurs',    icon: Users },
-    { id: 'omra',          label: 'Omra / Hajj',     icon: Plane },
+    { id: 'omra',          label: 'Omra',            icon: Plane },
     { id: 'comptabilite',  label: 'Comptabilité',    icon: Banknote },
   ];
 
@@ -393,7 +393,7 @@ const AdminDashboard = () => {
                     desc={`${stats?.pendingBookings ?? 0} en attente`} onClick={() => setActiveTab('bookings')} />
                   <ActionCard icon={Users} title="Gérer les utilisateurs"
                     desc={`${stats?.totalUsers ?? 0} comptes`} onClick={() => setActiveTab('users')} />
-                  <ActionCard icon={Plane} title="Omra & Hajj"
+                  <ActionCard icon={Plane} title="Omra"
                     desc="Offres et réservations" onClick={() => setActiveTab('omra')} />
                 </div>
               </div>
