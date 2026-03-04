@@ -45,9 +45,10 @@ const useAdminSocket = () => {
 
   useEffect(() => {
     const socket = io(API_BASE_URL, {
-      transports: ['websocket', 'polling'],
-      reconnectionDelay: 2000,
-      reconnectionAttempts: 10
+      transports: ['polling'],   // WebSocket not supported on Vercel serverless
+      upgrade: false,            // prevent upgrade attempt to WS
+      reconnectionDelay: 3000,
+      reconnectionAttempts: Infinity,
     });
 
     socketRef.current = socket;

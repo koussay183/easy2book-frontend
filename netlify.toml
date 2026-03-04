@@ -4,6 +4,7 @@
 
 [build.environment]
   GENERATE_SOURCEMAP = "false"
+  REACT_APP_ENV      = "production"
 
 [[redirects]]
   from   = "/*"
