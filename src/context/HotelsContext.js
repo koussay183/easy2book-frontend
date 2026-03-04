@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { API_ENDPOINTS } from '../config/api';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import { io as socketIO } from 'socket.io-client';
+import { API_ENDPOINTS, API_BASE_URL } from '../config/api';
 
 const HotelsContext = createContext();
 
@@ -34,6 +35,11 @@ export const HotelsProvider = ({ children }) => {
   const prefetchCacheRef    = useRef(null);   // { offset, hotels, hasMore, total }
   const prefetchingRef      = useRef(false);
   const loadingMoreSyncRef  = useRef(false);  // synchronous guard (state update is async)
+
+  // Always-fresh refs for use inside stable socket callback
+  const searchParamsRef = useRef(searchParams);
+  const fetchHotelsRef  = useRef(null);
+  searchParamsRef.current = searchParams; // updated every render, no re-render caused
 
   /* ── Build URL + body (shared) ── */
   const buildRequest = (params, offset) => {
@@ -139,6 +145,7 @@ export const HotelsProvider = ({ children }) => {
       setLoading(false);
     }
   }, [prefetchPage]); // eslint-disable-line react-hooks/exhaustive-deps
+  fetchHotelsRef.current = fetchHotels; // always-fresh ref
 
   /* ── Load next page — uses prefetch cache if ready, then prefetches the one after ── */
   const loadMoreHotels = useCallback(async () => {
@@ -204,6 +211,29 @@ export const HotelsProvider = ({ children }) => {
       checkOut: null, rooms: 1, roomsConfig: [{ adults: 2, children: [] }]
     });
   }, []);
+
+  /* ── Markup-change broadcast ──────────────────────────────────────────────
+   * When the admin saves a new markup value, the backend emits 'markup:changed'
+   * to all connected clients via Socket.IO.  We silently re-fetch the currently
+   * displayed hotel page from offset 0 so displayed prices are immediately
+   * updated — no manual refresh required.
+   * ─────────────────────────────────────────────────────────────────────── */
+  useEffect(() => {
+    const socket = socketIO(API_BASE_URL, {
+      transports:      ['websocket', 'polling'],
+      withCredentials: true,
+    });
+
+    socket.on('markup:changed', () => {
+      const sp = searchParamsRef.current;
+      // Only re-fetch when there is an active search result on screen
+      if (sp?.cityId && sp?.checkIn && sp?.checkOut && fetchHotelsRef.current) {
+        fetchHotelsRef.current(sp);
+      }
+    });
+
+    return () => socket.disconnect();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = {
     hotels,
