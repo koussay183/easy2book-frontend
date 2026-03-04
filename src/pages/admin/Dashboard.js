@@ -4,12 +4,13 @@ import {
   LayoutDashboard, Users, Calendar, LogOut,
   Menu, X, Bell, Plane, ChevronRight, TrendingUp,
   Clock, CheckCircle2, DollarSign, RefreshCw, Wifi, WifiOff,
-  Monitor, Globe, Eye, Banknote
+  Monitor, Globe, Eye, Banknote, Puzzle
 } from 'lucide-react';
 import UsersManager from './UsersManager';
 import BookingsManager from './BookingsManager';
 import OmraManager from './OmraManager';
 import Comptabilite from './Comptabilite';
+import Integrations from './Integrations';
 import { API_ENDPOINTS } from '../../config/api';
 import useAdminSocket from '../../hooks/useAdminSocket';
 
@@ -189,6 +190,7 @@ const AdminDashboard = () => {
     { id: 'users',         label: 'Utilisateurs',    icon: Users },
     { id: 'omra',          label: 'Omra',            icon: Plane },
     { id: 'comptabilite',  label: 'Comptabilité',    icon: Banknote },
+    { id: 'integrations',  label: 'Intégrations',    icon: Puzzle },
   ];
 
   const currentLabel = navItems.find(n => n.id === activeTab)?.label || 'Dashboard';
@@ -495,10 +497,11 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {activeTab === 'bookings'     && <BookingsManager />}
-          {activeTab === 'users'        && <UsersManager />}
-          {activeTab === 'omra'         && <OmraManager />}
-          {activeTab === 'comptabilite' && <Comptabilite />}
+          {activeTab === 'bookings'      && <BookingsManager />}
+          {activeTab === 'users'         && <UsersManager />}
+          {activeTab === 'omra'          && <OmraManager />}
+          {activeTab === 'comptabilite'  && <Comptabilite />}
+          {activeTab === 'integrations'  && <Integrations />}
 
         </main>
       </div>
