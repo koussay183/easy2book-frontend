@@ -250,6 +250,11 @@ const Comptabilite = () => {
   const [online,   setOnline]   = useState({ instructions:'' });
   const [markup,   setMarkup]   = useState({ enabled: false, type: 'percentage', value: '' });
 
+  /* ── Markup save state ── */
+  const [markupSaving, setMarkupSaving] = useState(false);
+  const [markupSaved,  setMarkupSaved]  = useState(false);
+  const [markupError,  setMarkupError]  = useState('');
+
   /* ── TripAdvisor integration state ── */
   const [taApiKey,  setTaApiKey]  = useState('');
   const [taEnabled, setTaEnabled] = useState(false);
@@ -335,13 +340,27 @@ const Comptabilite = () => {
       const res = await fetch(API_ENDPOINTS.ADMIN_SETTINGS, {
         method:  'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ wafacash, izi, agency, online,
-          markup: { ...markup, value: parseFloat(markup.value) || 0 } }),
+        body: JSON.stringify({ wafacash, izi, agency, online }),
       });
       const data = await res.json();
       if (data.status === 'success') { setSaved(true); setTimeout(() => setSaved(false), 3000); }
       else setError(data.message || 'Erreur de sauvegarde');
     } catch { setError('Erreur réseau'); } finally { setSaving(false); }
+  };
+
+  /* ── save markup settings ── */
+  const handleSaveMarkup = async () => {
+    setMarkupSaving(true); setMarkupError(''); setMarkupSaved(false);
+    try {
+      const res = await fetch(API_ENDPOINTS.ADMIN_SETTINGS, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ markup: { ...markup, value: parseFloat(markup.value) || 0 } }),
+      });
+      const data = await res.json();
+      if (data.status === 'success') { setMarkupSaved(true); setTimeout(() => setMarkupSaved(false), 3000); }
+      else setMarkupError(data.message || 'Erreur de sauvegarde');
+    } catch { setMarkupError('Erreur réseau'); } finally { setMarkupSaving(false); }
   };
 
   /* ── save TripAdvisor settings (API key + current enabled state) ── */
@@ -533,117 +552,6 @@ const Comptabilite = () => {
             </div>
           </ChannelCard>
 
-          {/* Markup / Marge */}
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
-                  <Percent size={18} className="text-amber-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">Tarification — Marge sur prix</p>
-                  <p className="text-xs text-gray-400">Appliquée à tous les prix myGo avant affichage client</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMarkup(m => ({ ...m, enabled: !m.enabled }))}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
-                  markup.enabled
-                    ? 'bg-green-50 border-green-200 text-green-700'
-                    : 'bg-gray-50 border-gray-200 text-gray-500'
-                }`}
-              >
-                {markup.enabled
-                  ? <><ToggleRight size={16} className="text-green-600" /> Activée</>
-                  : <><ToggleLeft  size={16} className="text-gray-400"  /> Désactivée</>
-                }
-              </button>
-            </div>
-            {/* Body */}
-            <div className="px-6 py-5 space-y-4">
-              {/* Status indicator */}
-              <div className={`flex items-center gap-2 p-3 rounded-xl text-xs font-medium ${
-                markup.enabled
-                  ? 'bg-amber-50 border border-amber-100 text-amber-700'
-                  : 'bg-gray-50 border border-gray-100 text-gray-500'
-              }`}>
-                {markup.enabled
-                  ? <><CheckCircle2 size={14} className="text-amber-600 flex-shrink-0" /> Marge activée — les prix affichés incluent la marge configurée.</>
-                  : <><AlertCircle  size={14} className="text-gray-400  flex-shrink-0" /> Marge désactivée. Les prix myGo sont affichés directement.</>
-                }
-              </div>
-              {/* Type selector */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-2">Type de marge</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setMarkup(m => ({ ...m, type: 'percentage' }))}
-                    className={`flex-1 py-2 rounded-xl border text-sm font-semibold transition-all ${
-                      markup.type === 'percentage'
-                        ? 'bg-primary-700 border-primary-700 text-white'
-                        : 'bg-white border-gray-200 text-gray-600 hover:border-primary-300'
-                    }`}
-                  >
-                    % Pourcentage
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMarkup(m => ({ ...m, type: 'fixed' }))}
-                    className={`flex-1 py-2 rounded-xl border text-sm font-semibold transition-all ${
-                      markup.type === 'fixed'
-                        ? 'bg-primary-700 border-primary-700 text-white'
-                        : 'bg-white border-gray-200 text-gray-600 hover:border-primary-300'
-                    }`}
-                  >
-                    TND Fixe
-                  </button>
-                </div>
-              </div>
-              {/* Value input */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                  {markup.type === 'percentage' ? 'Marge (%)' : 'Marge fixe (TND)'}
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    step={markup.type === 'percentage' ? '0.1' : '1'}
-                    value={markup.value}
-                    onChange={e => setMarkup(m => ({ ...m, value: e.target.value }))}
-                    placeholder={markup.type === 'percentage' ? 'Ex: 10' : 'Ex: 50'}
-                    className="w-full pr-16 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-100 focus:border-primary-500 outline-none"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-400 pointer-events-none">
-                    {markup.type === 'percentage' ? '%' : 'TND'}
-                  </span>
-                </div>
-              </div>
-              {/* Live preview */}
-              {markup.value !== '' && parseFloat(markup.value) > 0 && (
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-gray-600 mb-2">Aperçu du calcul</p>
-                  <div className="flex items-center gap-3 text-sm flex-wrap">
-                    <span className="text-gray-500">Prix myGo: <strong dir="ltr">100,00 TND</strong></span>
-                    <span className="text-gray-400">→</span>
-                    <span className="text-primary-700 font-bold" dir="ltr">
-                      {markup.type === 'percentage'
-                        ? `${(100 * (1 + parseFloat(markup.value) / 100)).toFixed(2)} TND`
-                        : `${(100 + parseFloat(markup.value)).toFixed(2)} TND`}
-                    </span>
-                    <span className="text-xs text-gray-400">(prix client)</span>
-                  </div>
-                </div>
-              )}
-              <p className="text-[11px] text-gray-400">
-                Le calcul est effectué côté serveur. Les clients ne voient jamais le prix d'origine ni le montant de la marge.
-              </p>
-            </div>
-          </div>
-
           {/* Save */}
           <div className="flex items-center justify-end gap-3 pt-2">
             {saved && (
@@ -666,6 +574,114 @@ const Comptabilite = () => {
       {/* ──────────── FINANCE TAB ──────────── */}
       {activeTab === 'finance' && (
         <div className="space-y-5">
+
+          {/* ─ Markup / Marge card ─ */}
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
+                  <Percent size={16} className="text-primary-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">Marge / Markup</p>
+                  <p className="text-xs text-gray-400">Majoration appliquée à tous les prix hôtels</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMarkup(m => ({ ...m, enabled: !m.enabled }))}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
+                  markup.enabled
+                    ? 'bg-green-50 border-green-200 text-green-700'
+                    : 'bg-gray-50 border-gray-200 text-gray-500'
+                }`}
+              >
+                {markup.enabled
+                  ? <><ToggleRight size={16} className="text-green-600" /> Activé</>
+                  : <><ToggleLeft  size={16} className="text-gray-400"  /> Désactivé</>
+                }
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Type selector */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Type de marge</label>
+                  <div className="flex gap-2">
+                    {[
+                      { key: 'percentage', label: '% Pourcentage' },
+                      { key: 'fixed',      label: 'TND Fixe' },
+                    ].map(opt => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => setMarkup(m => ({ ...m, type: opt.key }))}
+                        className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                          markup.type === opt.key
+                            ? 'bg-primary-700 text-white border-primary-700'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Value input */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                    Valeur {markup.type === 'percentage' ? '(%)' : '(TND)'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      step={markup.type === 'percentage' ? '0.1' : '1'}
+                      value={markup.value}
+                      onChange={e => setMarkup(m => ({ ...m, value: e.target.value }))}
+                      placeholder={markup.type === 'percentage' ? 'ex. 10' : 'ex. 50'}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-100 focus:border-primary-500 outline-none transition-colors"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium pointer-events-none">
+                      {markup.type === 'percentage' ? '%' : 'TND'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {/* Live preview */}
+              {markup.enabled && parseFloat(markup.value) > 0 && (
+                <div className="bg-primary-50 border border-primary-100 rounded-xl px-4 py-3 text-xs text-primary-700">
+                  <strong>Aperçu :</strong> Un prix de <strong>100 TND</strong> deviendra{' '}
+                  <strong>
+                    {markup.type === 'percentage'
+                      ? (100 * (1 + parseFloat(markup.value) / 100)).toFixed(2)
+                      : (100 + parseFloat(markup.value)).toFixed(2)}{' '}TND
+                  </strong>
+                </div>
+              )}
+              {markupError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+                  <AlertCircle size={14} /> {markupError}
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-3 pt-1">
+                {markupSaved && (
+                  <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+                    <CheckCircle2 size={14} /> Enregistré
+                  </span>
+                )}
+                <button
+                  onClick={handleSaveMarkup}
+                  disabled={markupSaving}
+                  className="flex items-center gap-2 bg-primary-700 hover:bg-primary-800 disabled:bg-gray-200 disabled:text-gray-400 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  {markupSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                  {markupSaving ? 'Enregistrement...' : 'Enregistrer la marge'}
+                </button>
+              </div>
+            </div>
+          </div>
+
           {loadingSum && loadingTx ? (
             <div className="flex items-center justify-center py-16 text-gray-400 gap-2">
               <RefreshCw size={18} className="animate-spin" /> Chargement des données financières...
