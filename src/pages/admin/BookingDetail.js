@@ -459,6 +459,98 @@ const BookingDetail = () => {
                 )}
               </Card>
 
+              {/* ── Provider confirmation card ── */}
+              {booking.myGoResponse?.BookingCreation && (() => {
+                const bc = booking.myGoResponse.BookingCreation;
+                const providerLabels = { mygo: 'myGo', dts: 'DTS', gts: 'GTS' };
+                const pLabel = providerLabels[booking.provider] || booking.provider || 'Fournisseur';
+                const myGoId = booking.myGoBookingId || bc.Id;
+                return (
+                  <Card icon={ExternalLink} title={`Confirmation ${pLabel}`} iconColor="text-emerald-600">
+                    <div className="space-y-3">
+                      {/* Provider + ID row */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Fournisseur</p>
+                          <span className="inline-block mt-1 px-2.5 py-0.5 bg-primary-50 text-primary-700 border border-primary-200 rounded text-xs font-bold">
+                            {pLabel}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">ID {pLabel}</p>
+                          <p className="text-sm font-mono font-bold text-gray-900 mt-0.5">
+                            {myGoId ? `#${myGoId}` : '—'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* State + source */}
+                      <div className="grid grid-cols-2 gap-3 border-t border-gray-100 pt-3">
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">État</p>
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            bc.State === 'OnRequest'
+                              ? 'bg-amber-50 text-amber-700 border-amber-300'
+                              : bc.State === 'Confirmed'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                : 'bg-gray-100 text-gray-600 border-gray-300'
+                          }`}>
+                            {bc.State || '—'}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Source</p>
+                          <p className="text-xs font-mono text-gray-600 mt-1">{bc.Source || '—'}</p>
+                        </div>
+                      </div>
+
+                      {/* Confirmation info */}
+                      {booking.confirmedBy && (
+                        <div className="border-t border-gray-100 pt-3 space-y-1.5">
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Confirmé par</p>
+                          <p className="text-xs font-semibold text-gray-800">{booking.confirmedBy?.fullName || booking.confirmedBy?.email || '—'}</p>
+                          {booking.confirmedAt && (
+                            <p className="text-xs text-gray-500">{new Date(booking.confirmedAt).toLocaleString('fr-FR')}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Cancellation deadline */}
+                      {bc.CancellationDeadline && (
+                        <div className="border-t border-gray-100 pt-3">
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Deadline annulation</p>
+                          <p className="text-xs font-bold text-red-600 mt-0.5">{bc.CancellationDeadline}</p>
+                        </div>
+                      )}
+
+                      {/* Rooms confirmed */}
+                      {bc.Rooms?.length > 0 && (
+                        <div className="border-t border-gray-100 pt-3 space-y-2">
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                            Chambres confirmées ({bc.Rooms.length})
+                          </p>
+                          {bc.Rooms.map((r, i) => (
+                            <div key={i} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                              <div>
+                                <p className="text-xs font-semibold text-gray-800">{r.Name}</p>
+                                <p className="text-[10px] text-gray-500">{r.Boarding?.Code} · {r.Boarding?.Name}</p>
+                                <p className="text-[10px] text-gray-400">
+                                  {r.Pax?.Adult?.length || 0} adulte{(r.Pax?.Adult?.length || 0) > 1 ? 's' : ''}
+                                  {r.Pax?.Child?.length > 0 ? ` · ${r.Pax.Child.length} enfant${r.Pax.Child.length > 1 ? 's' : ''}` : ''}
+                                </p>
+                              </div>
+                              <p className="text-xs font-bold text-primary-700 flex-shrink-0 ml-2">
+                                {parseFloat(r.Price).toFixed(3)} TND
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })()}
+
               {booking.notes && (
                 <Card icon={FileText} title="Demandes spéciales" iconColor="text-amber-600">
                   <div className="bg-amber-50 rounded-lg px-4 py-3 border border-amber-200">
@@ -613,151 +705,248 @@ const BookingDetail = () => {
       </div>
 
       {/* ── myGo 2-step confirmation modal ── */}
-      {myGoModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/60"
-            onClick={myGoModal.step === 'loading' || myGoModal.step === 'confirming' ? undefined : closeMyGoModal}
-          />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+      {myGoModal.open && (() => {
+        const bc   = myGoModal.offer?.BookingCreation;
+        const hotel = bc?.Hotel;
+        const nights = bc?.CheckIn && bc?.CheckOut
+          ? Math.ceil((new Date(bc.CheckOut) - new Date(bc.CheckIn)) / 864e5) : 0;
+        const stripHtml = (html) => {
+          try { return new DOMParser().parseFromString(html, 'text/html').body.textContent || ''; }
+          catch { return html; }
+        };
+        const providerLabel = { mygo: 'myGo', dts: 'DTS', gts: 'GTS' };
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="ltr">
+            <div
+              className="absolute inset-0 bg-black/60"
+              onClick={myGoModal.step === 'loading' || myGoModal.step === 'confirming' ? undefined : closeMyGoModal}
+            />
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
-            {/* Loading / Confirming spinner */}
-            {(myGoModal.step === 'loading' || myGoModal.step === 'confirming') && (
-              <div className="p-12 flex flex-col items-center gap-4">
-                <RefreshCw size={36} className="animate-spin text-primary-700" />
-                <p className="text-sm font-semibold text-gray-700">
-                  {myGoModal.step === 'loading' ? "Récupération de l'offre myGo..." : 'Confirmation en cours...'}
-                </p>
-              </div>
-            )}
-
-            {/* Offer review */}
-            {myGoModal.step === 'offer' && myGoModal.offer && (
-              <>
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ExternalLink size={15} className="text-primary-700" />
-                    <p className="text-sm font-bold text-gray-900">Offre myGo — Vérifiez avant de confirmer</p>
-                  </div>
-                  <button onClick={closeMyGoModal} className="text-gray-400 hover:text-gray-600 transition-colors">
-                    <X size={18} />
-                  </button>
-                </div>
-                <div className="p-6 space-y-4">
-                  {myGoModal.offer?.BookingCreation?.TotalPrice && (
-                    <div className="bg-primary-50 rounded-xl p-4 flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-700">Prix total myGo</p>
-                      <p className="text-xl font-bold text-primary-700">
-                        {parseFloat(myGoModal.offer.BookingCreation.TotalPrice).toFixed(2)}{' '}
-                        {myGoModal.offer.BookingCreation.Currency || 'TND'}
-                      </p>
-                    </div>
-                  )}
-                  {myGoModal.offer?.BookingCreation?.TotalPrice && booking?.totalPrice &&
-                    parseFloat(myGoModal.offer.BookingCreation.TotalPrice) !== parseFloat(booking.totalPrice) && (
-                    <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 flex items-start gap-2">
-                      <AlertCircle size={15} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-amber-800">
-                        Attention : prix myGo ({parseFloat(myGoModal.offer.BookingCreation.TotalPrice).toFixed(2)}) ≠ prix
-                        enregistré ({parseFloat(booking.totalPrice).toFixed(2)} TND)
-                      </p>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Hôtel</p>
-                      <p className="text-sm font-semibold text-gray-900">
-                        {booking?.hotelBooking?.Hotel} — {booking?.hotelBooking?.City}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Séjour</p>
-                      <p className="text-sm font-semibold text-gray-900">
-                        {booking?.hotelBooking?.CheckIn} → {booking?.hotelBooking?.CheckOut}
-                      </p>
-                    </div>
-                  </div>
-                  {myGoModal.offer?.BookingCreation?.id && (
-                    <div>
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">ID offre myGo</p>
-                      <p className="text-sm font-mono text-gray-900">{myGoModal.offer.BookingCreation.id}</p>
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-400">
-                    En cliquant sur "Confirmer", une réservation réelle sera créée dans le système myGo.
+              {/* ── Loading ── */}
+              {(myGoModal.step === 'loading' || myGoModal.step === 'confirming') && (
+                <div className="p-14 flex flex-col items-center gap-4">
+                  <RefreshCw size={36} className="animate-spin text-primary-700" />
+                  <p className="text-sm font-semibold text-gray-700">
+                    {myGoModal.step === 'loading' ? "Récupération de l'offre myGo..." : 'Confirmation en cours — ne fermez pas cette fenêtre...'}
                   </p>
                 </div>
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
-                  <button onClick={closeMyGoModal}
-                    className="flex-1 px-4 py-2.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors">
-                    Fermer
-                  </button>
-                  <button onClick={handleConfirmFinal}
-                    className="flex-1 px-4 py-2.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
-                    <Check size={14} />
-                    Confirmer la réservation
-                  </button>
-                </div>
-              </>
-            )}
+              )}
 
-            {/* Done */}
-            {myGoModal.step === 'done' && (
-              <>
-                <div className="p-10 flex flex-col items-center gap-4 text-center">
-                  <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center">
-                    <CheckCircle size={28} className="text-emerald-600" />
+              {/* ── Offer review ── */}
+              {myGoModal.step === 'offer' && bc && (
+                <>
+                  {/* Header */}
+                  <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                      <ExternalLink size={15} className="text-primary-700" />
+                      <p className="text-sm font-bold text-gray-900">Offre {providerLabel[booking?.provider] || booking?.provider || 'Fournisseur'} — vérifiez avant de confirmer</p>
+                    </div>
+                    <button onClick={closeMyGoModal} className="text-gray-400 hover:text-gray-700 transition-colors"><X size={18} /></button>
                   </div>
-                  <div>
-                    <p className="text-base font-bold text-gray-900 mb-1">Réservation confirmée !</p>
-                    {booking?.myGoBookingId && (
-                      <p className="text-xs text-gray-500">
-                        ID myGo : <span className="font-mono font-bold text-gray-900">{booking.myGoBookingId}</span>
-                      </p>
+
+                  {/* Scrollable body */}
+                  <div className="overflow-y-auto flex-1 p-6 space-y-5">
+
+                    {/* Hotel hero */}
+                    {hotel && (
+                      <div className="flex items-start gap-4">
+                        {hotel.Image && (
+                          <img src={hotel.Image} alt={hotel.Name}
+                            className="w-20 h-16 object-cover rounded-lg flex-shrink-0 border border-gray-100"
+                            onError={e => e.target.style.display = 'none'}
+                          />
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-base font-bold text-gray-900 leading-tight">{hotel.Name}</p>
+                          {hotel.Category?.Star > 0 && (
+                            <div className="flex items-center gap-0.5 mt-0.5">
+                              {[...Array(hotel.Category.Star)].map((_, i) => (
+                                <Star key={i} size={11} className="fill-yellow-400 text-yellow-400" />
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                            <MapPin size={11} className="flex-shrink-0" />
+                            <span>{hotel.City?.Name}{hotel.Adress ? ` · ${hotel.Adress}` : ''}</span>
+                          </div>
+                        </div>
+                      </div>
                     )}
-                  </div>
-                </div>
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-                  <button onClick={closeMyGoModal}
-                    className="w-full px-4 py-2.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-sm font-medium transition-colors">
-                    Fermer
-                  </button>
-                </div>
-              </>
-            )}
 
-            {/* Error */}
-            {myGoModal.step === 'error' && (
-              <>
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <p className="text-sm font-bold text-gray-900">Erreur myGo</p>
-                  <button onClick={closeMyGoModal} className="text-gray-400 hover:text-gray-600 transition-colors">
-                    <X size={18} />
-                  </button>
-                </div>
-                <div className="p-6">
-                  <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-start gap-2">
-                    <AlertCircle size={15} className="text-red-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-red-800">{myGoModal.error || 'Une erreur est survenue'}</p>
-                  </div>
-                </div>
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
-                  <button onClick={closeMyGoModal}
-                    className="flex-1 px-4 py-2.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors">
-                    Fermer
-                  </button>
-                  <button onClick={handlePreBook}
-                    className="flex-1 px-4 py-2.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
-                    <RefreshCw size={14} />
-                    Réessayer
-                  </button>
-                </div>
-              </>
-            )}
+                    {/* Price + dates summary */}
+                    <div className="bg-primary-50 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Prix total</p>
+                        <p className="text-2xl font-bold text-primary-700">
+                          {parseFloat(bc.TotalPrice).toFixed(3)} <span className="text-base">{bc.Currency || 'TND'}</span>
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-semibold text-gray-700">
+                          {bc.CheckIn} → {bc.CheckOut}
+                          {nights > 0 && <span className="text-primary-600 ml-1">({nights} nuit{nights > 1 ? 's' : ''})</span>}
+                        </p>
+                        {bc.State && (
+                          <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            bc.State === 'OnRequest'
+                              ? 'bg-amber-50 text-amber-700 border-amber-300'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                          }`}>
+                            {bc.State}
+                          </span>
+                        )}
+                        {bc.CancellationDeadline && (
+                          <p className="text-[10px] text-red-600 font-medium mt-0.5">
+                            Annulation avant le {bc.CancellationDeadline}
+                          </p>
+                        )}
+                      </div>
+                    </div>
 
+                    {/* Price discrepancy */}
+                    {booking?.totalPrice && parseFloat(bc.TotalPrice) !== parseFloat(booking.totalPrice) && (
+                      <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 flex items-start gap-2">
+                        <AlertCircle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-800">
+                          Attention : prix fournisseur ({parseFloat(bc.TotalPrice).toFixed(3)} {bc.Currency}) ≠ prix enregistré ({parseFloat(booking.totalPrice).toFixed(3)} TND)
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Rooms */}
+                    {bc.Rooms?.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                          Chambres ({bc.Rooms.length})
+                        </p>
+                        {bc.Rooms.map((r, i) => (
+                          <div key={i} className="border border-gray-200 rounded-xl overflow-hidden">
+                            <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                              <div className="flex items-center gap-2">
+                                <Hotel size={13} className="text-primary-600" />
+                                <p className="text-xs font-bold text-gray-900">
+                                  Ch. {i + 1} — {r.Name}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold px-2 py-0.5 bg-primary-50 text-primary-700 rounded-full border border-primary-200">
+                                  {r.Boarding?.Code} · {r.Boarding?.Name}
+                                </span>
+                                <span className="text-xs font-bold text-gray-900">{parseFloat(r.Price).toFixed(3)} TND</span>
+                              </div>
+                            </div>
+                            <div className="px-4 py-2.5 flex flex-wrap gap-1">
+                              {r.Pax?.Adult?.map((a, j) => (
+                                <span key={j} className="inline-flex items-center gap-1 text-[10px] bg-white border border-gray-200 px-2 py-0.5 rounded-full text-gray-700">
+                                  <User size={9} /> {a.Civility} {a.Name} {a.Surname}
+                                  {a.Holder && <span className="text-emerald-600 font-bold">★</span>}
+                                </span>
+                              ))}
+                            </div>
+                            {r.CancellationPolicy?.length > 0 && (
+                              <div className="px-4 pb-3 space-y-1">
+                                {r.CancellationPolicy.map((p, j) => (
+                                  <p key={j} className="text-[10px] text-gray-500 leading-snug">
+                                    ⚠ {p.Description}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Remarks */}
+                    {bc.Remarks?.length > 0 && bc.Remarks.some(r => r?.trim()) && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 space-y-1">
+                        <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-1">Remarques hôtel</p>
+                        {bc.Remarks.map((r, i) => r?.trim() && (
+                          <p key={i} className="text-xs text-amber-900 leading-snug">{stripHtml(r)}</p>
+                        ))}
+                      </div>
+                    )}
+
+                    <p className="text-xs text-gray-400">
+                      En cliquant sur "Confirmer", une réservation réelle sera créée chez {providerLabel[booking?.provider] || 'le fournisseur'}.
+                    </p>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3 flex-shrink-0">
+                    <button onClick={closeMyGoModal}
+                      className="flex-1 px-4 py-2.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+                      Fermer
+                    </button>
+                    <button onClick={handleConfirmFinal}
+                      className="flex-1 px-4 py-2.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                      <Check size={14} />
+                      Confirmer la réservation
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* ── Done ── */}
+              {myGoModal.step === 'done' && (
+                <>
+                  <div className="p-10 flex flex-col items-center gap-4 text-center">
+                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
+                      <CheckCircle size={32} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-base font-bold text-gray-900 mb-1">Réservation confirmée !</p>
+                      {(booking?.myGoBookingId || booking?.myGoResponse?.BookingCreation?.Id) && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          ID {providerLabel[booking?.provider] || booking?.provider || 'fournisseur'} :{' '}
+                          <span className="font-mono font-bold text-gray-900 text-sm">
+                            {booking.myGoBookingId || booking?.myGoResponse?.BookingCreation?.Id}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                    <button onClick={closeMyGoModal}
+                      className="w-full px-4 py-2.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-sm font-medium transition-colors">
+                      Fermer
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* ── Error ── */}
+              {myGoModal.step === 'error' && (
+                <>
+                  <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <p className="text-sm font-bold text-gray-900">Erreur fournisseur</p>
+                    <button onClick={closeMyGoModal} className="text-gray-400 hover:text-gray-700 transition-colors"><X size={18} /></button>
+                  </div>
+                  <div className="p-6">
+                    <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-start gap-2">
+                      <AlertCircle size={15} className="text-red-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-red-800">{myGoModal.error || 'Une erreur est survenue'}</p>
+                    </div>
+                  </div>
+                  <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+                    <button onClick={closeMyGoModal}
+                      className="flex-1 px-4 py-2.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+                      Fermer
+                    </button>
+                    <button onClick={handlePreBook}
+                      className="flex-1 px-4 py-2.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                      <RefreshCw size={14} />
+                      Réessayer
+                    </button>
+                  </div>
+                </>
+              )}
+
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </>
   );
 };
