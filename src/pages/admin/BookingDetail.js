@@ -4,7 +4,7 @@ import {
   ArrowLeft, Hotel, Clock, User, Users, Mail, Phone,
   CreditCard, FileText, CheckCircle, XCircle,
   AlertCircle, RefreshCw, Download, Printer, Building2,
-  MapPin, Star, Utensils, Check, Edit
+  MapPin, Star, Utensils, Check, Edit, X, ExternalLink
 } from 'lucide-react';
 import { API_ENDPOINTS, API_BASE_URL } from '../../config/api';
 
@@ -123,17 +123,50 @@ const BookingDetail = () => {
     if (window.confirm(`Changer le paiement à "${s}"?`))
       patchBooking(`${API_BASE_URL}/api/bookings/${id}/payment`, { paymentStatus: s });
   };
-  const handleConfirm = async () => {
-    if (!window.confirm('Confirmer cette réservation via myGo?')) return;
+  /* ── myGo 2-step confirmation modal ── */
+  const [myGoModal, setMyGoModal] = useState({
+    open: false, step: 'idle', offer: null, error: null
+    // step: 'loading' | 'offer' | 'confirming' | 'done' | 'error'
+  });
+  const closeMyGoModal = () => setMyGoModal({ open: false, step: 'idle', offer: null, error: null });
+
+  // Step 1 — pre-book (PreBooking:true): fetch offer, show it
+  const handlePreBook = async () => {
+    setMyGoModal({ open: true, step: 'loading', offer: null, error: null });
+    try {
+      const res  = await fetch(`${API_BASE_URL}/api/bookings/${id}/prebooking`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setMyGoModal({ open: true, step: 'offer', offer: data.data.offer, error: null });
+      } else {
+        setMyGoModal({ open: true, step: 'error', offer: null, error: data.message });
+      }
+    } catch {
+      setMyGoModal({ open: true, step: 'error', offer: null, error: 'Erreur réseau' });
+    }
+  };
+
+  // Step 2 — confirm (PreBooking:false): create real booking
+  const handleConfirmFinal = async () => {
+    setMyGoModal(prev => ({ ...prev, step: 'confirming' }));
     try {
       const res  = await fetch(`${API_BASE_URL}/api/bookings/${id}/confirm`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
       });
       const data = await res.json();
-      if (data.status === 'success') { alert('Confirmée!'); loadBooking(); }
-      else alert(`Erreur: ${data.message}`);
-    } catch { alert('Erreur de confirmation'); }
+      if (data.status === 'success') {
+        setMyGoModal(prev => ({ ...prev, step: 'done', error: null }));
+        loadBooking();
+      } else {
+        setMyGoModal(prev => ({ ...prev, step: 'error', error: data.message }));
+      }
+    } catch {
+      setMyGoModal(prev => ({ ...prev, step: 'error', error: 'Erreur réseau' }));
+    }
   };
 
   /* ── CSV exports ── */
@@ -509,7 +542,7 @@ const BookingDetail = () => {
 
                   {booking.status === 'pending' && (
                     <>
-                      <button onClick={handleConfirm}
+                      <button onClick={handlePreBook}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors">
                         <CheckCircle size={15} />
                         Confirmer via myGo
@@ -578,6 +611,153 @@ const BookingDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* ── myGo 2-step confirmation modal ── */}
+      {myGoModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={myGoModal.step === 'loading' || myGoModal.step === 'confirming' ? undefined : closeMyGoModal}
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+
+            {/* Loading / Confirming spinner */}
+            {(myGoModal.step === 'loading' || myGoModal.step === 'confirming') && (
+              <div className="p-12 flex flex-col items-center gap-4">
+                <RefreshCw size={36} className="animate-spin text-primary-700" />
+                <p className="text-sm font-semibold text-gray-700">
+                  {myGoModal.step === 'loading' ? "Récupération de l'offre myGo..." : 'Confirmation en cours...'}
+                </p>
+              </div>
+            )}
+
+            {/* Offer review */}
+            {myGoModal.step === 'offer' && myGoModal.offer && (
+              <>
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ExternalLink size={15} className="text-primary-700" />
+                    <p className="text-sm font-bold text-gray-900">Offre myGo — Vérifiez avant de confirmer</p>
+                  </div>
+                  <button onClick={closeMyGoModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="p-6 space-y-4">
+                  {myGoModal.offer?.BookingCreation?.TotalPrice && (
+                    <div className="bg-primary-50 rounded-xl p-4 flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-700">Prix total myGo</p>
+                      <p className="text-xl font-bold text-primary-700">
+                        {parseFloat(myGoModal.offer.BookingCreation.TotalPrice).toFixed(2)}{' '}
+                        {myGoModal.offer.BookingCreation.Currency || 'TND'}
+                      </p>
+                    </div>
+                  )}
+                  {myGoModal.offer?.BookingCreation?.TotalPrice && booking?.totalPrice &&
+                    parseFloat(myGoModal.offer.BookingCreation.TotalPrice) !== parseFloat(booking.totalPrice) && (
+                    <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 flex items-start gap-2">
+                      <AlertCircle size={15} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-800">
+                        Attention : prix myGo ({parseFloat(myGoModal.offer.BookingCreation.TotalPrice).toFixed(2)}) ≠ prix
+                        enregistré ({parseFloat(booking.totalPrice).toFixed(2)} TND)
+                      </p>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Hôtel</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {booking?.hotelBooking?.Hotel} — {booking?.hotelBooking?.City}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Séjour</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {booking?.hotelBooking?.CheckIn} → {booking?.hotelBooking?.CheckOut}
+                      </p>
+                    </div>
+                  </div>
+                  {myGoModal.offer?.BookingCreation?.id && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">ID offre myGo</p>
+                      <p className="text-sm font-mono text-gray-900">{myGoModal.offer.BookingCreation.id}</p>
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-400">
+                    En cliquant sur "Confirmer", une réservation réelle sera créée dans le système myGo.
+                  </p>
+                </div>
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+                  <button onClick={closeMyGoModal}
+                    className="flex-1 px-4 py-2.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+                    Fermer
+                  </button>
+                  <button onClick={handleConfirmFinal}
+                    className="flex-1 px-4 py-2.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                    <Check size={14} />
+                    Confirmer la réservation
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Done */}
+            {myGoModal.step === 'done' && (
+              <>
+                <div className="p-10 flex flex-col items-center gap-4 text-center">
+                  <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <CheckCircle size={28} className="text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-base font-bold text-gray-900 mb-1">Réservation confirmée !</p>
+                    {booking?.myGoBookingId && (
+                      <p className="text-xs text-gray-500">
+                        ID myGo : <span className="font-mono font-bold text-gray-900">{booking.myGoBookingId}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                  <button onClick={closeMyGoModal}
+                    className="w-full px-4 py-2.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-sm font-medium transition-colors">
+                    Fermer
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Error */}
+            {myGoModal.step === 'error' && (
+              <>
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <p className="text-sm font-bold text-gray-900">Erreur myGo</p>
+                  <button onClick={closeMyGoModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="p-6">
+                  <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-start gap-2">
+                    <AlertCircle size={15} className="text-red-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-800">{myGoModal.error || 'Une erreur est survenue'}</p>
+                  </div>
+                </div>
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+                  <button onClick={closeMyGoModal}
+                    className="flex-1 px-4 py-2.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+                    Fermer
+                  </button>
+                  <button onClick={handlePreBook}
+                    className="flex-1 px-4 py-2.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                    <RefreshCw size={14} />
+                    Réessayer
+                  </button>
+                </div>
+              </>
+            )}
+
+          </div>
+        </div>
+      )}
     </>
   );
 };
