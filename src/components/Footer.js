@@ -67,13 +67,13 @@ const Footer = () => {
             </h3>
             <div className="flex flex-col gap-3">
               <a 
-                href="tel:+216XXXXXXXX" 
+                href="tel:+21698140514" 
                 className={`flex items-center gap-3 text-white/80 hover:text-white transition-colors group ${isRTL ? 'flex-row-reverse' : ''}`}
               >
                 <div className="bg-white/20 p-2 rounded-lg group-hover:bg-white/30 transition-colors">
                   <Phone size={18} className="text-white" />
                 </div>
-                <span>+216 XX XXX XXX</span>
+                <span>+216 98 140 514</span>
               </a>
               <a 
                 href="mailto:info@easy2book.tn" 

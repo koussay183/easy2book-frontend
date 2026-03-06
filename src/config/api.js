@@ -91,6 +91,7 @@ export const API_ENDPOINTS = {
   ADMIN_SUPPLIER_BOOKINGS:        `${API_BASE_URL}/api/admin/supplier/bookings`,
   // GET  /api/bookings/:id/provider/fees   — check cancellation fees (dry-run)
   // PATCH /api/bookings/:id/provider/cancel — cancel at provider + mark DB cancelled
+  BOOKINGS_PROVIDER_SYNC:   (id) => `${API_BASE_URL}/api/bookings/${id}/provider/sync`,
   BOOKINGS_PROVIDER_FEES:   (id) => `${API_BASE_URL}/api/bookings/${id}/provider/fees`,
   BOOKINGS_PROVIDER_CANCEL: (id) => `${API_BASE_URL}/api/bookings/${id}/provider/cancel`,
 

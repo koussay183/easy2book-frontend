@@ -20,6 +20,7 @@ const STATE_OPTIONS = [
   { value: '',           label: 'Tous les états' },
   { value: 'OnRequest',  label: 'En attente (OnRequest)' },
   { value: 'Confirmed',  label: 'Confirmée' },
+  { value: 'Validated',  label: 'Validée (Voucher émis)' },
   { value: 'Cancelled',  label: 'Annulée' },
 ];
 
@@ -34,6 +35,7 @@ const stateBadge = (state) => {
     Cancelled:  'bg-red-50 text-red-700 border-red-200',
     OnRequest:  'bg-amber-50 text-amber-700 border-amber-200',
     Confirmed:  'bg-emerald-50 text-emerald-700 border-emerald-200',
+    Validated:  'bg-blue-50 text-blue-700 border-blue-200',
   };
   return map[state] || 'bg-gray-100 text-gray-600 border-gray-200';
 };
@@ -41,6 +43,7 @@ const stateBadge = (state) => {
 const stateIcon = (state) => {
   if (state === 'Cancelled')  return <Ban size={11} />;
   if (state === 'OnRequest')  return <Clock size={11} />;
+  if (state === 'Validated')  return <CheckCircle size={11} />;
   if (state === 'Confirmed')  return <CheckCircle size={11} />;
   return <Globe size={11} />;
 };
@@ -120,6 +123,33 @@ const BookingDetailContent = ({ entry, onClose }) => {
             )}
           </div>
         </div>
+
+        {/* Voucher — the most important deliverable to the client */}
+        {b.Voucher?.Num && (
+          <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                <CheckCircle size={18} className="text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wide mb-0.5">Voucher hôtel</p>
+                <p className="text-sm font-bold text-blue-900 font-mono truncate">#{b.Voucher.Num}</p>
+                <p className="text-[10px] text-blue-500 mt-0.5">À envoyer au client — document de séjour</p>
+              </div>
+            </div>
+            {b.Voucher.Url && (
+              <a
+                href={b.Voucher.Url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors"
+              >
+                <ExternalLink size={13} />
+                Ouvrir
+              </a>
+            )}
+          </div>
+        )}
 
         {/* Rooms */}
         {b.Rooms?.length > 0 && (

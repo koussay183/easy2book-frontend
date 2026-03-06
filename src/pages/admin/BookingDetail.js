@@ -209,6 +209,21 @@ const BookingDetail = () => {
     }
   };
 
+  /* ── Provider sync ── */
+  const [syncing, setSyncing] = useState(false);
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res  = await fetch(API_ENDPOINTS.BOOKINGS_PROVIDER_SYNC(id), {
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
+      });
+      const data = await res.json();
+      if (data.status === 'success') loadBooking();
+      else alert(`Sync failed: ${data.message}`);
+    } catch { alert('Erreur réseau lors de la synchronisation'); }
+    finally  { setSyncing(false); }
+  };
+
   /* ── CSV exports ── */
   const exportThis = () => {
     if (!booking) return;
@@ -291,6 +306,7 @@ const BookingDetail = () => {
   const currency     = booking.myGoResponse?.BookingCreation?.Currency || 'TND';
   const hasDiscrep   = booking.myGoResponse?.BookingCreation?.TotalPrice &&
     parseFloat(booking.myGoResponse.BookingCreation.TotalPrice) !== parseFloat(booking.totalPrice);
+  const hasProviderBooking = !!(booking.myGoBookingId || booking.myGoResponse?.BookingCreation?.Id);
   const boarding     = getBoardingInfo(room?.Boarding);
 
   return (
@@ -501,10 +517,18 @@ const BookingDetail = () => {
 
               {/* ── Provider confirmation card ── */}
               {booking.myGoResponse?.BookingCreation && (() => {
-                const bc = booking.myGoResponse.BookingCreation;
+                const bc         = booking.myGoResponse.BookingCreation;
+                const synced     = booking.myGoResponse?.BookingDetails || null;   // latest from provider sync
+                const voucher    = synced?.Voucher || bc.Voucher || null;
+                const liveState  = synced?.State || bc.State;
                 const providerLabels = { mygo: 'myGo', dts: 'DTS', gts: 'GTS' };
                 const pLabel = providerLabels[booking.provider] || booking.provider || 'Fournisseur';
                 const myGoId = booking.myGoBookingId || bc.Id;
+                const stateColor = liveState === 'OnRequest'  ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                 : liveState === 'Validated'  ? 'bg-blue-50 text-blue-700 border-blue-300'
+                                 : liveState === 'Confirmed'  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                 : liveState === 'Cancelled'  ? 'bg-red-50 text-red-700 border-red-300'
+                                 : 'bg-gray-100 text-gray-600 border-gray-300';
                 return (
                   <Card icon={ExternalLink} title={`Confirmation ${pLabel}`} iconColor="text-emerald-600">
                     <div className="space-y-3">
@@ -528,15 +552,10 @@ const BookingDetail = () => {
                       <div className="grid grid-cols-2 gap-3 border-t border-gray-100 pt-3">
                         <div>
                           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">État</p>
-                          <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                            bc.State === 'OnRequest'
-                              ? 'bg-amber-50 text-amber-700 border-amber-300'
-                              : bc.State === 'Confirmed'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                : 'bg-gray-100 text-gray-600 border-gray-300'
-                          }`}>
-                            {bc.State || '—'}
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${stateColor}`}>
+                            {liveState || '—'}
                           </span>
+                          {synced && <p className="text-[10px] text-gray-400 mt-0.5">Source: fournisseur</p>}
                         </div>
                         <div>
                           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Source</p>
@@ -563,6 +582,26 @@ const BookingDetail = () => {
                         </div>
                       )}
 
+                      {/* Voucher — most valuable for the client */}
+                      {voucher && (
+                        <div className="border-t border-gray-100 pt-3">
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Voucher</p>
+                          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-bold text-blue-900">#{voucher.Num}</p>
+                              <p className="text-[10px] text-blue-600 mt-0.5">Prêt à envoyer au client</p>
+                            </div>
+                            <a
+                              href={voucher.Url} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors flex-shrink-0"
+                            >
+                              <ExternalLink size={12} />
+                              Ouvrir
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Rooms confirmed */}
                       {bc.Rooms?.length > 0 && (
                         <div className="border-t border-gray-100 pt-3 space-y-2">
@@ -584,6 +623,25 @@ const BookingDetail = () => {
                               </p>
                             </div>
                           ))}
+                        </div>
+                      )}
+
+                      {/* Sync from provider */}
+                      {booking.status !== 'cancelled' && (booking.myGoBookingId || bc.Id) && (
+                        <div className="border-t border-gray-100 pt-3">
+                          <button
+                            onClick={handleSync}
+                            disabled={syncing}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                          >
+                            <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
+                            {syncing ? 'Synchronisation...' : `Sync depuis ${pLabel}`}
+                          </button>
+                          {booking.myGoResponse?.lastSyncedAt && (
+                            <p className="text-[10px] text-gray-400 text-center mt-1">
+                              Dernière synchro : {new Date(booking.myGoResponse.lastSyncedAt).toLocaleString('fr-FR')}
+                            </p>
+                          )}
                         </div>
                       )}
 
@@ -692,11 +750,13 @@ const BookingDetail = () => {
                         <CheckCircle size={15} />
                         Confirmer via myGo
                       </button>
-                      <button onClick={() => handleUpdateStatus('cancelled')}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
-                        <XCircle size={15} />
-                        Annuler
-                      </button>
+                      {!hasProviderBooking && (
+                        <button onClick={() => handleUpdateStatus('cancelled')}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
+                          <XCircle size={15} />
+                          Annuler
+                        </button>
+                      )}
                     </>
                   )}
 
@@ -707,11 +767,20 @@ const BookingDetail = () => {
                         <Check size={15} />
                         Marquer comme terminée
                       </button>
-                      <button onClick={() => handleUpdateStatus('cancelled')}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
-                        <XCircle size={15} />
-                        Annuler
-                      </button>
+                      {hasProviderBooking ? (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-start gap-2">
+                          <AlertCircle size={13} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-amber-800 leading-snug">
+                            Pour annuler, utilisez <strong>"Annuler chez {booking.provider || 'fournisseur'}"</strong> dans la section Confirmation ci-dessous.
+                          </p>
+                        </div>
+                      ) : (
+                        <button onClick={() => handleUpdateStatus('cancelled')}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
+                          <XCircle size={15} />
+                          Annuler
+                        </button>
+                      )}
                     </>
                   )}
 
