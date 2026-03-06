@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { 
+import {
   ArrowLeft, User, Mail, Phone, CreditCard, Building2, Calendar,
   Users, Home, Loader2, MapPin, Star, Utensils, Info, Shield, Clock, CheckCircle2
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { useAgency } from '../context/AgencyContext';
 import { API_ENDPOINTS } from '../config/api';
 
 const BookingPage = () => {
   const { language } = useLanguage();
   const isRTL = language === 'ar';
+  const { isAgencyUser } = useAgency();
   const navigate = useNavigate();
   const location = useLocation();
   const { hotel, room, boarding, checkIn, checkOut, adults, children, nights } = location.state || {};
@@ -190,33 +192,40 @@ const BookingPage = () => {
       }
 
       // For ONLINE payment: Don't create booking yet, initiate payment first
-      if (paymentMethod === 'online') {
+      // (Agency users always pay via credit — skip online payment gateway)
+      if (paymentMethod === 'online' && !isAgencyUser) {
         // Import payment service at the top of the file
         const { initiatePayment } = await import('../services/paymentService');
-        
+
         try {
           const { payUrl, paymentRef } = await initiatePayment(bookingData);
-          
+
           // Store payment reference for validation
           localStorage.setItem('pendingPaymentRef', paymentRef);
-          
+
           // Redirect to payment gateway
           window.location.href = payUrl;
           return;
         } catch (paymentError) {
           console.error('Payment initiation error:', paymentError);
-          alert(language === 'fr' 
-            ? `Erreur de paiement: ${paymentError.message}` 
-            : language === 'ar' 
-            ? `خطأ في الدفع: ${paymentError.message}` 
+          alert(language === 'fr'
+            ? `Erreur de paiement: ${paymentError.message}`
+            : language === 'ar'
+            ? `خطأ في الدفع: ${paymentError.message}`
             : `Payment error: ${paymentError.message}`);
           setLoading(false);
           return;
         }
       }
 
-      // For AGENCY payment: Create booking normally
-      const response = await fetch(API_ENDPOINTS.BOOKINGS, {
+      // For agency users: always use credit (overwrite payment method)
+      if (isAgencyUser) {
+        bookingData.paymentMethod = 'agency';
+      }
+
+      // Create booking (B2C endpoint or B2B agency endpoint)
+      const bookingEndpoint = isAgencyUser ? API_ENDPOINTS.AGENCY_BOOKINGS : API_ENDPOINTS.BOOKINGS;
+      const response = await fetch(bookingEndpoint, {
         method: 'POST',
         headers: headers,
         credentials: 'include',

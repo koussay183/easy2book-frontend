@@ -100,7 +100,7 @@ const Textarea = ({ style = {}, ...props }) => (
 );
 
 const PrimaryButton = ({ children, style = {}, ...props }) => (
-  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#005096', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', ...style }} {...props}>
+  <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#002d5f', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', ...style }} {...props}>
     {children}
   </button>
 );
@@ -171,7 +171,7 @@ export default function AgencyManager() {
   const [statusDraft, setStatusDraft] = useState('');
 
   const [creditAmount, setCreditAmount] = useState('');
-  const [creditType, setCreditType] = useState('add');
+  const [creditType, setCreditType] = useState('credit');
   const [creditNote, setCreditNote] = useState('');
   const [creditLoading, setCreditLoading] = useState(false);
 
@@ -186,6 +186,10 @@ export default function AgencyManager() {
 
   const [addMemberForm, setAddMemberForm] = useState({ firstName: '', lastName: '', email: '', password: '', role: 'agency_staff' });
   const [addMemberLoading, setAddMemberLoading] = useState(false);
+
+  // Markup inline editor (independent from main info edit mode)
+  const [markupEditMode, setMarkupEditMode] = useState(false);
+  const [markupForm, setMarkupForm] = useState({ enabled: false, type: 'percentage', value: 0 });
 
   // ── Data fetchers ──────────────────────────────────────────────────────────
 
@@ -205,7 +209,8 @@ export default function AgencyManager() {
   const loadAgencyDetail = useCallback(async (id) => {
     try {
       const data = await authFetch(API_ENDPOINTS.ADMIN_AGENCY(id));
-      const agency = data.agency || data;
+      // Response: { status, data: { agency, users, recentBookings } }
+      const agency = data.data?.agency || data.agency || data;
       setSelectedAgency(agency);
       setStatusDraft(agency.status || 'pending');
     } catch (e) {
@@ -216,7 +221,8 @@ export default function AgencyManager() {
   const loadStats = useCallback(async (id) => {
     try {
       const data = await authFetch(API_ENDPOINTS.ADMIN_AGENCY_STATS(id));
-      setStats(data.stats || data);
+      // Response: { status, data: { byStatus, bookingsByMonth, creditBalance, ... } }
+      setStats(data.data || data.stats || data);
     } catch (e) {
       setError(e.message);
     }
@@ -226,8 +232,9 @@ export default function AgencyManager() {
     setLoading(true);
     try {
       const data = await authFetch(`${API_ENDPOINTS.ADMIN_AGENCY_BOOKINGS(id)}?page=${page}&limit=20`);
-      setAgencyBookings(data.bookings || data.data || []);
-      setBookingsTotal(data.total || 0);
+      // Response: { status, data: { bookings: [], total, page, pages } }
+      setAgencyBookings(data.data?.bookings || data.bookings || []);
+      setBookingsTotal(data.data?.total || data.total || 0);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -283,9 +290,16 @@ export default function AgencyManager() {
         country: selectedAgency.address?.country || '',
         postalCode: selectedAgency.address?.postalCode || '',
         notes: selectedAgency.notes || '',
+        commissionRate: selectedAgency.commissionRate ?? 0,
+        creditLimit: selectedAgency.creditLimit ?? 0,
         markupEnabled: selectedAgency.markup?.enabled || false,
         markupType: selectedAgency.markup?.type || 'percentage',
         markupValue: selectedAgency.markup?.value || 0,
+      });
+      setMarkupForm({
+        enabled: selectedAgency.markup?.enabled || false,
+        type: selectedAgency.markup?.type || 'percentage',
+        value: selectedAgency.markup?.value ?? 0,
       });
       setStatusDraft(selectedAgency.status || 'pending');
     }
@@ -340,6 +354,8 @@ export default function AgencyManager() {
           registrationNumber: editForm.registrationNumber,
           address: { street: editForm.street, city: editForm.city, country: editForm.country, postalCode: editForm.postalCode },
           notes: editForm.notes,
+          commissionRate: parseFloat(editForm.commissionRate) || 0,
+          creditLimit: parseFloat(editForm.creditLimit) || 0,
           markup: { enabled: editForm.markupEnabled, type: editForm.markupType, value: parseFloat(editForm.markupValue) || 0 },
         }),
       });
@@ -384,6 +400,26 @@ export default function AgencyManager() {
       setError(e.message);
     } finally {
       setCreditLoading(false);
+    }
+  };
+
+  const handleMarkupSave = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await authFetch(API_ENDPOINTS.ADMIN_AGENCY(selectedAgency._id), {
+        method: 'PATCH',
+        body: JSON.stringify({
+          markup: { enabled: markupForm.enabled, type: markupForm.type, value: parseFloat(markupForm.value) || 0 },
+        }),
+      });
+      setSuccessMsg('Marge mise à jour.');
+      setMarkupEditMode(false);
+      await loadAgencyDetail(selectedAgency._id);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -445,7 +481,7 @@ export default function AgencyManager() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
           {[
-            { label: 'Total agences',   value: agencies.length,           icon: <Building2 size={20} color="#005096" /> },
+            { label: 'Total agences',   value: agencies.length,           icon: <Building2 size={20} color="#002d5f" /> },
             { label: 'Agences actives', value: activeCount,               icon: <CheckCircle size={20} color="#16a34a" /> },
             { label: 'Crédit total',    value: `${fmt(totalCredit)} TND`, icon: <CreditCard size={20} color="#b45309" /> },
           ].map((s) => (
@@ -482,7 +518,7 @@ export default function AgencyManager() {
                     const available = (a.creditBalance || 0) + (a.creditLimit || 0);
                     return (
                       <tr key={a._id} onMouseEnter={(e) => (e.currentTarget.style.background = '#f9fafb')} onMouseLeave={(e) => (e.currentTarget.style.background = '')}>
-                        <td style={{ ...TdStyle, fontFamily: 'monospace', fontWeight: 600, color: '#005096' }}>{a.code || a.agencyCode || '—'}</td>
+                        <td style={{ ...TdStyle, fontFamily: 'monospace', fontWeight: 600, color: '#002d5f' }}>{a.code || a.agencyCode || '—'}</td>
                         <td style={{ ...TdStyle, fontWeight: 600 }}>{a.name}</td>
                         <td style={TdStyle}>{a.email}</td>
                         <td style={TdStyle}><StatusBadge status={a.status} /></td>
@@ -600,6 +636,7 @@ export default function AgencyManager() {
     if (!a) return null;
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        {/* Main info card — full width */}
         <Card style={{ gridColumn: '1 / -1' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <SectionTitle style={{ margin: 0 }}>Informations de l'agence</SectionTitle>
@@ -624,19 +661,18 @@ export default function AgencyManager() {
               </FormRow>
               <FormRow cols={1}><FormField><Label>Notes</Label><Textarea rows={3} value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} /></FormField></FormRow>
               <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 16, marginTop: 4 }}>
-                <Label>Configuration markup</Label>
-                <div style={{ marginBottom: 10 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
-                    <input type="checkbox" checked={editForm.markupEnabled} onChange={(e) => setEditForm({ ...editForm, markupEnabled: e.target.checked })} />
-                    Activer le markup
-                  </label>
-                </div>
-                {editForm.markupEnabled && (
-                  <FormRow>
-                    <FormField><Label>Type</Label><Select value={editForm.markupType} onChange={(e) => setEditForm({ ...editForm, markupType: e.target.value })}><option value="percentage">Pourcentage (%)</option><option value="fixed">Montant fixe (TND)</option></Select></FormField>
-                    <FormField><Label>Valeur</Label><Input type="number" value={editForm.markupValue} onChange={(e) => setEditForm({ ...editForm, markupValue: e.target.value })} /></FormField>
-                  </FormRow>
-                )}
+                <FormRow>
+                  <FormField>
+                    <Label>Commission analytique (%)</Label>
+                    <p style={{ fontSize: 12, color: '#9ca3af', margin: '2px 0 8px' }}>Réservé à usage analytique — n'affecte pas le calcul du crédit.</p>
+                    <Input type="number" min={0} max={100} step={0.1} value={editForm.commissionRate} onChange={(e) => setEditForm({ ...editForm, commissionRate: e.target.value })} />
+                  </FormField>
+                  <FormField>
+                    <Label>Limite de crédit (TND)</Label>
+                    <p style={{ fontSize: 12, color: '#9ca3af', margin: '2px 0 8px' }}>Crédit de confiance accordé au-delà du solde chargé.</p>
+                    <Input type="number" min={0} step={1} value={editForm.creditLimit} onChange={(e) => setEditForm({ ...editForm, creditLimit: e.target.value })} />
+                  </FormField>
+                </FormRow>
               </div>
             </>
           ) : (
@@ -646,9 +682,8 @@ export default function AgencyManager() {
                 ['Enregistrement', a.registrationNumber],
                 ['Adresse', [a.address?.street, a.address?.city, a.address?.country].filter(Boolean).join(', ')],
                 ['Notes', a.notes],
-                ['Markup activé', a.markup?.enabled ? 'Oui' : 'Non'],
-                ['Type markup', a.markup?.type],
-                ['Valeur markup', a.markup?.value != null ? `${a.markup.value}${a.markup?.type === 'percentage' ? '%' : ' TND'}` : '—'],
+                ['Commission analytique', `${a.commissionRate ?? '—'}%`],
+                ['Limite crédit', `${fmt(a.creditLimit)} TND`],
               ].map(([k, v]) => (
                 <div key={k}>
                   <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 2 }}>{k}</div>
@@ -659,6 +694,7 @@ export default function AgencyManager() {
           )}
         </Card>
 
+        {/* Statut */}
         <Card>
           <SectionTitle>Statut de l'agence</SectionTitle>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -671,21 +707,113 @@ export default function AgencyManager() {
           </div>
         </Card>
 
+        {/* Solde crédit */}
         <Card>
-          <SectionTitle>Commission & Crédit</SectionTitle>
+          <SectionTitle>Solde crédit</SectionTitle>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {[
-              ['Taux commission', `${a.commissionRate ?? '—'}%`],
-              ['Limite crédit', `${fmt(a.creditLimit)} TND`],
-              ['Solde crédit', `${fmt(a.creditBalance)} TND`],
+              ['Solde chargé',      `${fmt(a.creditBalance)} TND`],
               ['Crédit disponible', `${fmt((a.creditBalance || 0) + (a.creditLimit || 0))} TND`],
+              ['Limite accordée',   `${fmt(a.creditLimit)} TND`],
             ].map(([k, v]) => (
-              <div key={k}>
-                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 2 }}>{k}</div>
+              <div key={k} style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 12px' }}>
+                <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>{k}</div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{v}</div>
               </div>
             ))}
           </div>
+        </Card>
+
+        {/* Marge Easy2Book — dedicated full-width inline editor */}
+        <Card style={{ gridColumn: '1 / -1' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div>
+              <SectionTitle style={{ margin: 0 }}>Marge Easy2Book</SectionTitle>
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: '#9ca3af' }}>
+                Appliquée sur chaque réservation B2B. L'agence paie : prix fournisseur + marge. Easy2Book conserve 100% de la marge.
+              </p>
+            </div>
+            {!markupEditMode ? (
+              <GhostButton onClick={() => { setMarkupForm({ enabled: a.markup?.enabled || false, type: a.markup?.type || 'percentage', value: a.markup?.value ?? 0 }); setMarkupEditMode(true); }} style={{ fontSize: 13 }}>
+                <Edit2 size={14} />Modifier la marge
+              </GhostButton>
+            ) : (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <PrimaryButton onClick={handleMarkupSave} disabled={loading} style={{ fontSize: 13, padding: '7px 14px' }}><Save size={14} />Enregistrer</PrimaryButton>
+                <GhostButton onClick={() => setMarkupEditMode(false)} style={{ fontSize: 13 }}><X size={14} />Annuler</GhostButton>
+              </div>
+            )}
+          </div>
+
+          {markupEditMode ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, alignItems: 'end' }}>
+              <FormField>
+                <Label>Statut</Label>
+                <Select value={markupForm.enabled ? 'on' : 'off'} onChange={(e) => setMarkupForm({ ...markupForm, enabled: e.target.value === 'on' })}>
+                  <option value="on">Activée</option>
+                  <option value="off">Désactivée</option>
+                </Select>
+              </FormField>
+              <FormField>
+                <Label>Type</Label>
+                <Select value={markupForm.type} onChange={(e) => setMarkupForm({ ...markupForm, type: e.target.value })} disabled={!markupForm.enabled}>
+                  <option value="percentage">Pourcentage (%)</option>
+                  <option value="fixed">Montant fixe (TND)</option>
+                </Select>
+              </FormField>
+              <FormField>
+                <Label>Valeur {markupForm.type === 'percentage' ? '(%)' : '(TND)'}</Label>
+                <Input type="number" min={0} step={markupForm.type === 'percentage' ? 0.1 : 1} value={markupForm.value} onChange={(e) => setMarkupForm({ ...markupForm, value: e.target.value })} disabled={!markupForm.enabled} />
+              </FormField>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'stretch' }}>
+              {/* Status pill */}
+              <div style={{ background: a.markup?.enabled ? '#e6eef5' : '#f3f4f6', border: `1px solid ${a.markup?.enabled ? '#ccdcea' : '#e5e7eb'}`, borderRadius: 10, padding: '12px 20px', minWidth: 120 }}>
+                <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>Statut</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: a.markup?.enabled ? '#002d5f' : '#9ca3af' }}>
+                  {a.markup?.enabled ? 'Activée' : 'Désactivée'}
+                </div>
+              </div>
+
+              {a.markup?.enabled ? (
+                <>
+                  <div style={{ background: '#e6eef5', border: '1px solid #ccdcea', borderRadius: 10, padding: '12px 20px', minWidth: 140 }}>
+                    <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>Type</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#002d5f' }}>
+                      {a.markup.type === 'fixed' ? 'Montant fixe' : 'Pourcentage'}
+                    </div>
+                  </div>
+                  <div style={{ background: '#002d5f', border: '1px solid #001d3f', borderRadius: 10, padding: '12px 20px', minWidth: 140 }}>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>Marge par réservation</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
+                      {a.markup.type === 'fixed' ? `+${a.markup.value} TND` : `+${a.markup.value}%`}
+                    </div>
+                  </div>
+                  <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '12px 20px', flex: 1, minWidth: 200 }}>
+                    <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6 }}>Exemple de calcul</div>
+                    <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
+                      myGo <strong>200 TND</strong> + marge <strong>{a.markup.type === 'fixed' ? `${a.markup.value} TND` : `${(200 * (a.markup.value / 100)).toFixed(3)} TND (${a.markup.value}%)`}</strong>
+                      <br />
+                      → Débit crédit agence : <strong style={{ color: '#002d5f' }}>
+                        {a.markup.type === 'fixed' ? `${(200 + (a.markup.value || 0)).toFixed(3)} TND` : `${(200 * (1 + (a.markup.value || 0) / 100)).toFixed(3)} TND`}
+                      </strong>
+                      <br />
+                      → Bénéfice Easy2Book : <strong style={{ color: '#166534' }}>
+                        {a.markup.type === 'fixed' ? `${parseFloat(a.markup.value || 0).toFixed(3)} TND` : `${(200 * (a.markup.value || 0) / 100).toFixed(3)} TND`}
+                      </strong>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={{ background: '#f9fafb', borderRadius: 10, padding: '12px 20px', flex: 1 }}>
+                  <div style={{ fontSize: 13, color: '#9ca3af' }}>
+                    Aucune marge configurée — l'agence paie uniquement le prix fournisseur exact. Easy2Book ne perçoit pas de marge sur cette agence.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </Card>
       </div>
     );
@@ -703,7 +831,7 @@ export default function AgencyManager() {
             <div style={{ marginBottom: 14 }}>
               <Label>Type</Label>
               <div style={{ display: 'flex', gap: 20, marginTop: 6 }}>
-                {[{ val: 'add', label: 'Crédit (ajouter)' }, { val: 'subtract', label: 'Débit (retirer)' }].map(({ val, label }) => (
+                {[{ val: 'credit', label: 'Crédit (ajouter)' }, { val: 'debit', label: 'Débit (retirer)' }].map(({ val, label }) => (
                   <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
                     <input type="radio" name="creditType" value={val} checked={creditType === val} onChange={() => setCreditType(val)} />{label}
                   </label>
@@ -727,12 +855,13 @@ export default function AgencyManager() {
             </div>
           ) : (
             <>
+              {/* Credit balance summary (always fresh from selectedAgency) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
                 {[
-                  ['Réservations totales',    stats.totalBookings ?? '—'],
-                  ['Revenu total',            stats.totalRevenue   != null ? `${fmt(stats.totalRevenue)} TND`    : '—'],
-                  ['Marge totale',            stats.totalMargin    != null ? `${fmt(stats.totalMargin)} TND`     : '—'],
-                  ['Valeur moy. réservation', stats.avgBookingValue != null ? `${fmt(stats.avgBookingValue)} TND` : '—'],
+                  ['Solde crédit',      `${fmt(stats.creditBalance ?? selectedAgency?.creditBalance ?? 0)} TND`],
+                  ['Crédit disponible', `${fmt(stats.availableCredit ?? ((selectedAgency?.creditBalance || 0) + (selectedAgency?.creditLimit || 0)))} TND`],
+                  ['Limite crédit',     `${fmt(stats.creditLimit ?? selectedAgency?.creditLimit ?? 0)} TND`],
+                  ['Réservations B2B',  Object.values(stats.byStatus || {}).reduce((s, v) => s + (v.count || 0), 0)],
                 ].map(([k, v]) => (
                   <div key={k} style={{ background: '#f9fafb', borderRadius: 8, padding: 12 }}>
                     <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>{k}</div>
@@ -740,20 +869,41 @@ export default function AgencyManager() {
                   </div>
                 ))}
               </div>
-              {Array.isArray(stats.monthly) && stats.monthly.length > 0 && (
+
+              {/* Bookings by status */}
+              {stats.byStatus && Object.keys(stats.byStatus).length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Par statut</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {Object.entries(stats.byStatus).map(([status, { count, revenue }]) => (
+                      <div key={status} style={{ background: '#f3f4f6', borderRadius: 8, padding: '8px 12px', minWidth: 90, textAlign: 'center' }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{count}</div>
+                        <div style={{ fontSize: 11, color: '#6b7280', textTransform: 'capitalize' }}>{status}</div>
+                        {revenue > 0 && <div style={{ fontSize: 11, color: '#059669', marginTop: 2 }}>{fmt(revenue)} TND</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Monthly trend */}
+              {Array.isArray(stats.bookingsByMonth) && stats.bookingsByMonth.length > 0 && (
                 <>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Tendance mensuelle (6 derniers mois)</div>
                   <table style={{ ...TableStyle, fontSize: 12 }}>
                     <thead><tr>{['Mois', 'Réservations', 'Revenu', 'Marge'].map((h) => <th key={h} style={{ ...ThStyle, padding: '7px 10px' }}>{h}</th>)}</tr></thead>
                     <tbody>
-                      {stats.monthly.slice(-6).map((m, i) => (
-                        <tr key={i}>
-                          <td style={{ ...TdStyle, padding: '7px 10px' }}>{m.month || m.period || `M${i + 1}`}</td>
-                          <td style={{ ...TdStyle, padding: '7px 10px' }}>{m.bookings ?? m.count ?? '—'}</td>
-                          <td style={{ ...TdStyle, padding: '7px 10px' }}>{m.revenue != null ? `${fmt(m.revenue)} TND` : '—'}</td>
-                          <td style={{ ...TdStyle, padding: '7px 10px' }}>{m.margin  != null ? `${fmt(m.margin)} TND`  : '—'}</td>
-                        </tr>
-                      ))}
+                      {stats.bookingsByMonth.slice(-6).map((m, i) => {
+                        const label = m._id || (m.year && m.month ? `${String(m.month).padStart(2, '0')}/${m.year}` : `M${i + 1}`);
+                        return (
+                          <tr key={i}>
+                            <td style={{ ...TdStyle, padding: '7px 10px' }}>{label}</td>
+                            <td style={{ ...TdStyle, padding: '7px 10px' }}>{m.count ?? m.bookings ?? '—'}</td>
+                            <td style={{ ...TdStyle, padding: '7px 10px' }}>{m.revenue != null ? `${fmt(m.revenue)} TND` : '—'}</td>
+                            <td style={{ ...TdStyle, padding: '7px 10px' }}>{(m.profit ?? m.margin)  != null ? `${fmt(m.profit ?? m.margin)} TND` : '—'}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </>
@@ -831,7 +981,7 @@ export default function AgencyManager() {
                 <tbody>
                   {agencyBookings.map((b) => (
                     <tr key={b._id} onMouseEnter={(e) => (e.currentTarget.style.background = '#f9fafb')} onMouseLeave={(e) => (e.currentTarget.style.background = '')}>
-                      <td style={{ ...TdStyle, fontFamily: 'monospace', fontWeight: 600, color: '#005096' }}>{b.confirmationCode || '—'}</td>
+                      <td style={{ ...TdStyle, fontFamily: 'monospace', fontWeight: 600, color: '#002d5f' }}>{b.confirmationCode || '—'}</td>
                       <td style={TdStyle}>{b.hotel?.name || b.hotelName || '—'}</td>
                       <td style={TdStyle}>{fmtDate(b.checkIn)}</td>
                       <td style={TdStyle}>{fmtDate(b.checkOut)}</td>
@@ -936,7 +1086,7 @@ export default function AgencyManager() {
     const kpis = [
       { label: 'Solde crédit',      value: `${fmt(a.creditBalance || 0)} TND` },
       { label: 'Crédit disponible', value: `${fmt((a.creditBalance || 0) + (a.creditLimit || 0))} TND` },
-      { label: 'Commission',        value: `${a.commissionRate ?? '—'}%` },
+      { label: 'Marge',             value: a.markup?.enabled ? (a.markup.type === 'fixed' ? `+${a.markup.value} TND` : `+${a.markup.value}%`) : 'Aucune' },
     ];
     return (
       <div>
@@ -954,8 +1104,8 @@ export default function AgencyManager() {
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               {kpis.map((k) => (
-                <div key={k.label} style={{ background: '#f0f6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '8px 16px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#005096' }}>{k.value}</div>
+                <div key={k.label} style={{ background: '#e6eef5', border: '1px solid #ccdcea', borderRadius: 10, padding: '8px 16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#002d5f' }}>{k.value}</div>
                   <div style={{ fontSize: 11, color: '#6b7280' }}>{k.label}</div>
                 </div>
               ))}
@@ -969,7 +1119,7 @@ export default function AgencyManager() {
         <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid #e5e7eb' }}>
           {tabs.map((t) => (
             <button key={t.key} onClick={() => { clearMessages(); setDetailTab(t.key); }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: detailTab === t.key ? 700 : 500, color: detailTab === t.key ? '#005096' : '#6b7280', borderBottom: detailTab === t.key ? '2px solid #005096' : '2px solid transparent', marginBottom: -1, transition: 'all 0.15s' }}>
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: detailTab === t.key ? 700 : 500, color: detailTab === t.key ? '#002d5f' : '#6b7280', borderBottom: detailTab === t.key ? '2px solid #002d5f' : '2px solid transparent', marginBottom: -1, transition: 'all 0.15s' }}>
               {t.icon}{t.label}
             </button>
           ))}

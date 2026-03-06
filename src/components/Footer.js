@@ -50,11 +50,18 @@ const Footer = () => {
               >
                 {t.footer.quickLinks.hotels}
               </Link>
-              <Link 
-                to="/omra" 
+              <Link
+                to="/omra"
                 className={`text-white/80 hover:text-white transition-colors ${isRTL ? 'hover:translate-x-1' : 'hover:-translate-x-1'} transform duration-200 inline-block`}
               >
                 {t.footer.quickLinks.omra}
+              </Link>
+              <Link
+                to="/partners"
+                className={`text-white/80 hover:text-white transition-colors ${isRTL ? 'hover:translate-x-1' : 'hover:-translate-x-1'} transform duration-200 inline-block flex items-center gap-1.5`}
+              >
+                <span className="text-xs bg-white/20 text-white px-1.5 py-0.5 rounded font-semibold tracking-wide">B2B</span>
+                {t.footer.quickLinks.partners}
               </Link>
             </div>
           </div>

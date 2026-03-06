@@ -206,6 +206,7 @@ export const translations = {
         home: 'Accueil',
         hotels: 'Hôtels Tunisiens',
         omra: 'Voyages Omra',
+        partners: 'Programme Partenaires',
       },
       contact: {
         title: 'Contactez-nous',
@@ -221,8 +222,22 @@ export const translations = {
       },
       copyright: 'Tous droits réservés',
     },
+    agencyLogin: {
+      title: 'Portail Agences',
+      subtitle: 'Easy2Book B2B — Connectez-vous à votre espace agence',
+      emailLabel: 'Adresse email',
+      passwordLabel: 'Mot de passe',
+      submit: 'Se connecter',
+      loading: 'Connexion...',
+      noAccount: 'Pas encore partenaire ?',
+      contactUs: 'Contactez-nous',
+      backToSite: 'Retour au site client',
+      fillAll: 'Veuillez remplir tous les champs',
+      accessDenied: 'Ce portail est réservé aux utilisateurs agence. Accès non autorisé.',
+      wrongCredentials: 'Email ou mot de passe incorrect',
+    },
   },
-  
+
   ar: {
     // Header
     header: {
@@ -427,6 +442,7 @@ export const translations = {
         home: 'الرئيسية',
         hotels: 'الفنادق التونسية',
         omra: 'رحلات العمرة',
+        partners: 'برنامج الشركاء',
       },
       contact: {
         title: 'تواصل معنا',
@@ -442,8 +458,22 @@ export const translations = {
       },
       copyright: 'جميع الحقوق محفوظة',
     },
+    agencyLogin: {
+      title: 'بوابة الوكالات',
+      subtitle: 'Easy2Book B2B — سجّل الدخول إلى فضاء وكالتك',
+      emailLabel: 'البريد الإلكتروني',
+      passwordLabel: 'كلمة المرور',
+      submit: 'تسجيل الدخول',
+      loading: 'جارٍ الاتصال...',
+      noAccount: 'لستَ شريكًا بعد؟',
+      contactUs: 'تواصل معنا',
+      backToSite: 'العودة إلى الموقع',
+      fillAll: 'يرجى ملء جميع الحقول',
+      accessDenied: 'هذه البوابة مخصصة لمستخدمي الوكالة. وصول مرفوض.',
+      wrongCredentials: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
+    },
   },
-  
+
   en: {
     // Header
     header: {
@@ -648,6 +678,7 @@ export const translations = {
         home: 'Home',
         hotels: 'Tunisian Hotels',
         omra: 'Omra Trips',
+        partners: 'Partner Program',
       },
       contact: {
         title: 'Contact Us',
@@ -662,6 +693,20 @@ export const translations = {
         button: 'Subscribe',
       },
       copyright: 'All rights reserved',
+    },
+    agencyLogin: {
+      title: 'Agency Portal',
+      subtitle: 'Easy2Book B2B — Sign in to your agency space',
+      emailLabel: 'Email address',
+      passwordLabel: 'Password',
+      submit: 'Sign in',
+      loading: 'Signing in...',
+      noAccount: 'Not a partner yet?',
+      contactUs: 'Contact us',
+      backToSite: 'Back to main site',
+      fillAll: 'Please fill in all fields',
+      accessDenied: 'This portal is for agency users only. Access denied.',
+      wrongCredentials: 'Incorrect email or password',
     },
   },
 };
