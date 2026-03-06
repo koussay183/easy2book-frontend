@@ -33,6 +33,7 @@ import BookingDetail from './pages/admin/BookingDetail';
 // Agency Portal Pages
 import AgencyLogin from './pages/agency/AgencyLogin';
 import AgencyDashboard from './pages/agency/AgencyDashboard';
+import B2BPartners from './pages/B2BPartners';
 
 /** Tracks visitor presence on public (non-admin) pages via Socket.IO */
 const VisitorTrackerInner = () => { useVisitorSocket(); return null; };
@@ -80,6 +81,7 @@ function App() {
             <Route path="/verify-email/:token" element={<VerifyEmail />} />
             <Route path="/bookings" element={<Bookings />} />
             <Route path="/guest-booking-lookup" element={<GuestBookingLookup />} />
+            <Route path="/partners" element={<B2BPartners />} />
 
             {/* Front Office Routes */}
             <Route path="/hotels" element={<Hotels />} />
