@@ -85,6 +85,15 @@ export const API_ENDPOINTS = {
   OMRA_ADMIN_RESERVATIONS: `${API_BASE_URL}/api/omra/admin/reservations`,
   OMRA_ADMIN_RESERVATION_STATUS: (id) => `${API_BASE_URL}/api/omra/admin/reservations/${id}/status`,
 
+  // Admin supplier (multi-provider: myGo, DTS, GTS, ...)
+  // GET  /api/admin/supplier/bookings?provider=mygo&page=1&perPage=20&...filters
+  // GET  /api/admin/supplier/bookings/:providerBookingId?provider=mygo
+  ADMIN_SUPPLIER_BOOKINGS:        `${API_BASE_URL}/api/admin/supplier/bookings`,
+  // GET  /api/bookings/:id/provider/fees   — check cancellation fees (dry-run)
+  // PATCH /api/bookings/:id/provider/cancel — cancel at provider + mark DB cancelled
+  BOOKINGS_PROVIDER_FEES:   (id) => `${API_BASE_URL}/api/bookings/${id}/provider/fees`,
+  BOOKINGS_PROVIDER_CANCEL: (id) => `${API_BASE_URL}/api/bookings/${id}/provider/cancel`,
+
   // TripAdvisor proxy endpoints (server-side proxy, API key never exposed to browser)
   TRIPADVISOR_SEARCH:  `${API_BASE_URL}/api/tripadvisor/search`,
   TRIPADVISOR_DETAILS: (locationId) => `${API_BASE_URL}/api/tripadvisor/${locationId}/details`,

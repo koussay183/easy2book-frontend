@@ -4,7 +4,7 @@ import {
   ArrowLeft, Hotel, Clock, User, Users, Mail, Phone,
   CreditCard, FileText, CheckCircle, XCircle,
   AlertCircle, RefreshCw, Download, Printer, Building2,
-  MapPin, Star, Utensils, Check, Edit, X, ExternalLink
+  MapPin, Star, Utensils, Check, Edit, X, ExternalLink, Ban
 } from 'lucide-react';
 import { API_ENDPOINTS, API_BASE_URL } from '../../config/api';
 
@@ -166,6 +166,46 @@ const BookingDetail = () => {
       }
     } catch {
       setMyGoModal(prev => ({ ...prev, step: 'error', error: 'Erreur réseau' }));
+    }
+  };
+
+  /* ── Provider cancel (2-step) ── */
+  const [cancelModal, setCancelModal] = useState({
+    open: false, step: 'idle', fees: null, error: null
+    // step: 'loading_fees' | 'review_fees' | 'cancelling' | 'done' | 'error'
+  });
+  const closeCancelModal = () => setCancelModal({ open: false, step: 'idle', fees: null, error: null });
+
+  const handleCheckFees = async () => {
+    setCancelModal({ open: true, step: 'loading_fees', fees: null, error: null });
+    try {
+      const res  = await fetch(`${API_BASE_URL}/api/bookings/${id}/provider/fees`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
+      });
+      const data = await res.json();
+      if (data.status === 'success') setCancelModal({ open: true, step: 'review_fees', fees: data.data.fees, error: null });
+      else setCancelModal({ open: true, step: 'error', fees: null, error: data.message });
+    } catch {
+      setCancelModal({ open: true, step: 'error', fees: null, error: 'Erreur réseau' });
+    }
+  };
+
+  const handleCancelConfirm = async () => {
+    setCancelModal(prev => ({ ...prev, step: 'cancelling' }));
+    try {
+      const res  = await fetch(`${API_BASE_URL}/api/bookings/${id}/provider/cancel`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setCancelModal(prev => ({ ...prev, step: 'done', error: null }));
+        loadBooking();
+      } else {
+        setCancelModal(prev => ({ ...prev, step: 'error', error: data.message }));
+      }
+    } catch {
+      setCancelModal(prev => ({ ...prev, step: 'error', error: 'Erreur réseau' }));
     }
   };
 
@@ -546,6 +586,19 @@ const BookingDetail = () => {
                           ))}
                         </div>
                       )}
+
+                      {/* Admin: cancel at provider */}
+                      {booking.status !== 'cancelled' && (booking.myGoBookingId || bc.Id) && (
+                        <div className="border-t border-gray-100 pt-3">
+                          <button
+                            onClick={handleCheckFees}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            <Ban size={14} />
+                            Annuler chez {pLabel}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </Card>
                 );
@@ -703,6 +756,124 @@ const BookingDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Provider cancel modal ── */}
+      {cancelModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="ltr">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={cancelModal.step === 'loading_fees' || cancelModal.step === 'cancelling' ? undefined : closeCancelModal}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+
+            {/* Loading */}
+            {(cancelModal.step === 'loading_fees' || cancelModal.step === 'cancelling') && (
+              <div className="p-12 flex flex-col items-center gap-4">
+                <RefreshCw size={32} className="animate-spin text-red-500" />
+                <p className="text-sm font-semibold text-gray-700 text-center">
+                  {cancelModal.step === 'loading_fees'
+                    ? "Vérification des frais d'annulation..."
+                    : 'Annulation en cours — ne fermez pas cette fenêtre...'}
+                </p>
+              </div>
+            )}
+
+            {/* Review fees */}
+            {cancelModal.step === 'review_fees' && cancelModal.fees && (() => {
+              const bc = cancelModal.fees.BookingCancellation;
+              const fee = bc ? parseFloat(bc.Fee) : 0;
+              return (
+                <>
+                  <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Ban size={15} className="text-red-500" />
+                      <p className="text-sm font-bold text-gray-900">Confirmer l'annulation</p>
+                    </div>
+                    <button onClick={closeCancelModal} className="text-gray-400 hover:text-gray-700 transition-colors"><X size={18} /></button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div className={`rounded-xl p-4 border ${fee > 0 ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Frais d'annulation</p>
+                      <p className={`text-2xl font-bold ${fee > 0 ? 'text-red-700' : 'text-emerald-700'}`}>
+                        {fee > 0 ? `${fee.toFixed(3)} ${bc?.Currency || 'TND'}` : 'Gratuite (0.000 TND)'}
+                      </p>
+                      {bc?.Cancelled && (
+                        <p className="text-xs text-gray-500 mt-1">Date d'annulation : {bc.Cancelled}</p>
+                      )}
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-start gap-2">
+                      <AlertCircle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-800">
+                        Cette action annulera définitivement la réservation chez le fournisseur et mettra à jour le statut en "Annulée".
+                      </p>
+                    </div>
+                  </div>
+                  <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+                    <button onClick={closeCancelModal}
+                      className="flex-1 px-4 py-2.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+                      Annuler
+                    </button>
+                    <button onClick={handleCancelConfirm}
+                      className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                      <Ban size={14} />
+                      Confirmer l'annulation
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+
+            {/* Done */}
+            {cancelModal.step === 'done' && (
+              <>
+                <div className="p-10 flex flex-col items-center gap-4 text-center">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <CheckCircle size={32} className="text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-base font-bold text-gray-900 mb-1">Réservation annulée</p>
+                    <p className="text-xs text-gray-500">La réservation a été annulée chez le fournisseur et mise à jour.</p>
+                  </div>
+                </div>
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                  <button onClick={closeCancelModal}
+                    className="w-full px-4 py-2.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-sm font-medium transition-colors">
+                    Fermer
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Error */}
+            {cancelModal.step === 'error' && (
+              <>
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <p className="text-sm font-bold text-gray-900">Erreur</p>
+                  <button onClick={closeCancelModal} className="text-gray-400 hover:text-gray-700 transition-colors"><X size={18} /></button>
+                </div>
+                <div className="p-6">
+                  <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-start gap-2">
+                    <AlertCircle size={14} className="text-red-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-800">{cancelModal.error || 'Une erreur est survenue'}</p>
+                  </div>
+                </div>
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+                  <button onClick={closeCancelModal}
+                    className="flex-1 px-4 py-2.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+                    Fermer
+                  </button>
+                  <button onClick={handleCheckFees}
+                    className="flex-1 px-4 py-2.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                    <RefreshCw size={14} />
+                    Réessayer
+                  </button>
+                </div>
+              </>
+            )}
+
+          </div>
+        </div>
+      )}
 
       {/* ── myGo 2-step confirmation modal ── */}
       {myGoModal.open && (() => {

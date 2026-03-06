@@ -4,13 +4,14 @@ import {
   LayoutDashboard, Users, Calendar, LogOut,
   Menu, X, Bell, Plane, ChevronRight, TrendingUp,
   Clock, CheckCircle2, DollarSign, RefreshCw, Wifi, WifiOff,
-  Monitor, Globe, Eye, Banknote, Puzzle
+  Monitor, Globe, Eye, Banknote, Puzzle, Database
 } from 'lucide-react';
 import UsersManager from './UsersManager';
 import BookingsManager from './BookingsManager';
 import OmraManager from './OmraManager';
 import Comptabilite from './Comptabilite';
 import Integrations from './Integrations';
+import SupplierBookings from './SupplierBookings';
 import { API_ENDPOINTS } from '../../config/api';
 import useAdminSocket from '../../hooks/useAdminSocket';
 
@@ -190,6 +191,7 @@ const AdminDashboard = () => {
     { id: 'users',         label: 'Utilisateurs',    icon: Users },
     { id: 'omra',          label: 'Omra',            icon: Plane },
     { id: 'comptabilite',  label: 'Comptabilité',    icon: Banknote },
+    { id: 'fournisseurs',  label: 'Fournisseurs',    icon: Database },
     { id: 'integrations',  label: 'Intégrations',    icon: Puzzle },
   ];
 
@@ -501,6 +503,7 @@ const AdminDashboard = () => {
           {activeTab === 'users'         && <UsersManager />}
           {activeTab === 'omra'          && <OmraManager />}
           {activeTab === 'comptabilite'  && <Comptabilite />}
+          {activeTab === 'fournisseurs'  && <SupplierBookings />}
           {activeTab === 'integrations'  && <Integrations />}
 
         </main>
