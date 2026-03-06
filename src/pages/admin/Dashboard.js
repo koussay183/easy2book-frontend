@@ -11,6 +11,8 @@ import BookingsManager from './BookingsManager';
 import OmraManager from './OmraManager';
 import Comptabilite from './Comptabilite';
 import Integrations from './Integrations';
+import Rapports from './Rapports';
+import Parametres from './Parametres';
 import SupplierManager from './SupplierManager';
 import SystemLogs from './SystemLogs';
 import { API_ENDPOINTS } from '../../config/api';
@@ -193,7 +195,7 @@ const AdminDashboard = () => {
     { id: 'b2b',        label: 'B2B Agences',       icon: Building2,  disabled: true },
     { id: 'suppliers',  label: 'Fournisseurs',      icon: Plug },
     { id: 'finance',    label: 'Finance',           icon: Banknote },
-    { id: 'rapports',   label: 'Rapports',          icon: BarChart3,  disabled: true },
+    { id: 'rapports',   label: 'Rapports',          icon: BarChart3 },
     { id: 'settings',   label: 'Paramètres',        icon: Settings2 },
     { id: 'logs',       label: 'Logs',              icon: Terminal },
   ];
@@ -520,22 +522,21 @@ const AdminDashboard = () => {
           {activeTab === 'omra'       && <OmraManager />}
           {activeTab === 'finance'    && <Comptabilite />}
           {activeTab === 'suppliers'  && <SupplierManager />}
-          {activeTab === 'settings'   && <Integrations />}
+          {activeTab === 'settings'   && <Parametres />}
+          {activeTab === 'rapports'   && <Rapports />}
           {activeTab === 'logs'       && <SystemLogs />}
 
           {/* Placeholder tabs (coming soon) */}
-          {(activeTab === 'b2b' || activeTab === 'rapports') && (
+          {activeTab === 'b2b' && (
             <div className="flex flex-col items-center justify-center py-24 text-gray-400 space-y-3">
               <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
-                {activeTab === 'b2b' ? <Building2 size={28} /> : <BarChart3 size={28} />}
+                <Building2 size={28} />
               </div>
               <p className="text-sm font-semibold text-gray-500">
-                {activeTab === 'b2b' ? 'B2B Agences' : 'Rapports'} — Bientôt disponible
+                B2B Agences — Bientôt disponible
               </p>
               <p className="text-xs text-gray-400 max-w-xs text-center">
-                {activeTab === 'b2b'
-                  ? 'Gestion des agences partenaires et accès B2B'
-                  : 'Rapports analytiques et exports avancés'}
+                Gestion des agences partenaires et accès B2B
               </p>
             </div>
           )}

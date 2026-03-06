@@ -95,6 +95,9 @@ export const API_ENDPOINTS = {
   SUPPLIER_CONFIG_UPDATE: (id) => `${API_BASE_URL}/api/admin/supplier-config/${id}`,
   SUPPLIER_CONFIG_TEST:   (id) => `${API_BASE_URL}/api/admin/supplier-config/${id}/test`,
   SUPPLIER_CONFIG_LOGS:          `${API_BASE_URL}/api/admin/supplier-config/logs`,
+  SUPPLIER_CONFIG_SET_PRIMARY: (id) => `${API_BASE_URL}/api/admin/supplier-config/${id}/set-primary`,
+  REPORTS_OVERVIEW:            `${API_BASE_URL}/api/admin/reports/overview`,
+  ADMIN_DATA_RESET:            `${API_BASE_URL}/api/admin/data/reset-bookings`,
 
   // Per-booking supplier endpoints
   BOOKINGS_PROVIDER_SYNC:         (id) => `${API_BASE_URL}/api/bookings/${id}/provider/sync`,
