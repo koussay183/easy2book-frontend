@@ -8,17 +8,18 @@ const Layout = ({ children }) => {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
   const isAdminPage = location.pathname.startsWith('/admin');
+  const isAgencyPage = location.pathname.startsWith('/agency');
   const isLandingPage = location.pathname === '/';
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
     <div className="flex flex-col min-h-screen">
-      {!isAuthPage && !isAdminPage && <LandingHeader onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />}
-      {!isAuthPage && !isAdminPage && <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />}
-      <main className={`flex-grow ${!isLandingPage && !isAuthPage && !isAdminPage ? 'pt-16' : ''}`}>
+      {!isAuthPage && !isAdminPage && !isAgencyPage && <LandingHeader onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />}
+      {!isAuthPage && !isAdminPage && !isAgencyPage && <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />}
+      <main className={`flex-grow ${!isLandingPage && !isAuthPage && !isAdminPage && !isAgencyPage ? 'pt-16' : ''}`}>
         {children}
       </main>
-      {!isAuthPage && !isAdminPage && <Footer />}
+      {!isAuthPage && !isAdminPage && !isAgencyPage && <Footer />}
     </div>
   );
 };

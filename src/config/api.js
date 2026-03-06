@@ -115,6 +115,28 @@ export const API_ENDPOINTS = {
   TRIPADVISOR_DETAILS: (locationId) => `${API_BASE_URL}/api/tripadvisor/${locationId}/details`,
   TRIPADVISOR_PHOTOS:  (locationId) => `${API_BASE_URL}/api/tripadvisor/${locationId}/photos`,
   TRIPADVISOR_REVIEWS: (locationId) => `${API_BASE_URL}/api/tripadvisor/${locationId}/reviews`,
+
+  // ── Agency self-service endpoints ────────────────────────────────────────
+  AGENCY_ME:              `${API_BASE_URL}/api/agency/me`,
+  AGENCY_MARKUP:          `${API_BASE_URL}/api/agency/markup`,
+  AGENCY_DASHBOARD:       `${API_BASE_URL}/api/agency/dashboard`,
+  AGENCY_HOTELS_SEARCH:   `${API_BASE_URL}/api/agency/hotels/search`,
+  AGENCY_HOTELS_DETAILS:  `${API_BASE_URL}/api/agency/hotels/details`,
+  AGENCY_BOOKINGS:        `${API_BASE_URL}/api/agency/bookings`,
+  AGENCY_BOOKING:         (id) => `${API_BASE_URL}/api/agency/bookings/${id}`,
+  AGENCY_BOOKING_CANCEL:  (id) => `${API_BASE_URL}/api/agency/bookings/${id}/cancel`,
+  AGENCY_INVOICE:         `${API_BASE_URL}/api/agency/invoice`,
+  AGENCY_USERS:           `${API_BASE_URL}/api/agency/users`,
+  AGENCY_USER:            (id) => `${API_BASE_URL}/api/agency/users/${id}`,
+
+  // ── Admin — Agency management ────────────────────────────────────────────
+  ADMIN_AGENCIES:          `${API_BASE_URL}/api/admin/agencies`,
+  ADMIN_AGENCY:            (id) => `${API_BASE_URL}/api/admin/agencies/${id}`,
+  ADMIN_AGENCY_CREDIT:     (id) => `${API_BASE_URL}/api/admin/agencies/${id}/credit`,
+  ADMIN_AGENCY_BOOKINGS:   (id) => `${API_BASE_URL}/api/admin/agencies/${id}/bookings`,
+  ADMIN_AGENCY_STATS:      (id) => `${API_BASE_URL}/api/admin/agencies/${id}/stats`,
+  ADMIN_AGENCY_USERS:      (id) => `${API_BASE_URL}/api/admin/agencies/${id}/users`,
+  ADMIN_AGENCY_INVOICE:    (id) => `${API_BASE_URL}/api/admin/agencies/${id}/invoice`,
 };
 
 // Helper function to get endpoint with dynamic parameters

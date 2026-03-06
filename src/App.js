@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { HotelsProvider } from './context/HotelsContext';
+import { AgencyProvider } from './context/AgencyContext';
 import Layout from './components/Layout';
 import Loader from './components/Loader';
 import useVisitorSocket from './hooks/useVisitorSocket';
@@ -29,11 +30,16 @@ import AdminLogin from './pages/admin/AdminLogin';
 import Dashboard from './pages/admin/Dashboard';
 import BookingDetail from './pages/admin/BookingDetail';
 
+// Agency Portal Pages
+import AgencyLogin from './pages/agency/AgencyLogin';
+import AgencyDashboard from './pages/agency/AgencyDashboard';
+
 /** Tracks visitor presence on public (non-admin) pages via Socket.IO */
 const VisitorTrackerInner = () => { useVisitorSocket(); return null; };
 const VisitorTracker = () => {
   const location = useLocation();
   if (location.pathname.startsWith('/admin')) return null;
+  if (location.pathname.startsWith('/agency')) return null;
   return <VisitorTrackerInner />;
 };
 
@@ -63,6 +69,7 @@ function App() {
     <AuthProvider>
       <HotelsProvider>
         <Router>
+          <AgencyProvider>
           <VisitorTracker />
           <Layout>
             <Routes>
@@ -73,7 +80,7 @@ function App() {
             <Route path="/verify-email/:token" element={<VerifyEmail />} />
             <Route path="/bookings" element={<Bookings />} />
             <Route path="/guest-booking-lookup" element={<GuestBookingLookup />} />
-            
+
             {/* Front Office Routes */}
             <Route path="/hotels" element={<Hotels />} />
             <Route path="/hotel/:id" element={<HotelDetails />} />
@@ -85,14 +92,20 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/omra" element={<Omra />} />
             <Route path="/omra/:id/book" element={<OmraBooking />} />
-            
+
             {/* Back Office Routes - Admin */}
             <Route path="/admin" element={<Dashboard />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<Dashboard />} />
             <Route path="/admin/bookings/:id" element={<BookingDetail />} />
+
+            {/* Agency Portal Routes */}
+            <Route path="/agency/login" element={<AgencyLogin />} />
+            <Route path="/agency/dashboard" element={<AgencyDashboard />} />
+            <Route path="/agency/*" element={<AgencyDashboard />} />
           </Routes>
         </Layout>
+        </AgencyProvider>
       </Router>
       </HotelsProvider>
     </AuthProvider>

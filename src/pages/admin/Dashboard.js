@@ -15,6 +15,7 @@ import Rapports from './Rapports';
 import Parametres from './Parametres';
 import SupplierManager from './SupplierManager';
 import SystemLogs from './SystemLogs';
+import AgencyManager from './AgencyManager';
 import { API_ENDPOINTS } from '../../config/api';
 import useAdminSocket from '../../hooks/useAdminSocket';
 
@@ -192,7 +193,7 @@ const AdminDashboard = () => {
     { id: 'overview',   label: 'Dashboard',        icon: LayoutDashboard },
     { id: 'bookings',   label: 'Réservations',     icon: Calendar },
     { id: 'clients',    label: 'Clients',           icon: Users },
-    { id: 'b2b',        label: 'B2B Agences',       icon: Building2,  disabled: true },
+    { id: 'b2b',        label: 'B2B Agences',       icon: Building2 },
     { id: 'suppliers',  label: 'Fournisseurs',      icon: Plug },
     { id: 'finance',    label: 'Finance',           icon: Banknote },
     { id: 'rapports',   label: 'Rapports',          icon: BarChart3 },
@@ -526,20 +527,7 @@ const AdminDashboard = () => {
           {activeTab === 'rapports'   && <Rapports />}
           {activeTab === 'logs'       && <SystemLogs />}
 
-          {/* Placeholder tabs (coming soon) */}
-          {activeTab === 'b2b' && (
-            <div className="flex flex-col items-center justify-center py-24 text-gray-400 space-y-3">
-              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
-                <Building2 size={28} />
-              </div>
-              <p className="text-sm font-semibold text-gray-500">
-                B2B Agences — Bientôt disponible
-              </p>
-              <p className="text-xs text-gray-400 max-w-xs text-center">
-                Gestion des agences partenaires et accès B2B
-              </p>
-            </div>
-          )}
+          {activeTab === 'b2b'       && <AgencyManager />}
 
         </main>
       </div>
