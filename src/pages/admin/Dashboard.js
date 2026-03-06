@@ -4,14 +4,15 @@ import {
   LayoutDashboard, Users, Calendar, LogOut,
   Menu, X, Bell, Plane, ChevronRight, TrendingUp,
   Clock, CheckCircle2, DollarSign, RefreshCw, Wifi, WifiOff,
-  Monitor, Globe, Eye, Banknote, Puzzle, Database
+  Monitor, Globe, Eye, Banknote, Building2, Plug, Settings2, Terminal, BarChart3
 } from 'lucide-react';
 import UsersManager from './UsersManager';
 import BookingsManager from './BookingsManager';
 import OmraManager from './OmraManager';
 import Comptabilite from './Comptabilite';
 import Integrations from './Integrations';
-import SupplierBookings from './SupplierBookings';
+import SupplierManager from './SupplierManager';
+import SystemLogs from './SystemLogs';
 import { API_ENDPOINTS } from '../../config/api';
 import useAdminSocket from '../../hooks/useAdminSocket';
 
@@ -186,13 +187,15 @@ const AdminDashboard = () => {
   };
 
   const navItems = [
-    { id: 'overview',      label: 'Vue d\'ensemble', icon: LayoutDashboard },
-    { id: 'bookings',      label: 'Réservations',    icon: Calendar },
-    { id: 'users',         label: 'Utilisateurs',    icon: Users },
-    { id: 'omra',          label: 'Omra',            icon: Plane },
-    { id: 'comptabilite',  label: 'Comptabilité',    icon: Banknote },
-    { id: 'fournisseurs',  label: 'Fournisseurs',    icon: Database },
-    { id: 'integrations',  label: 'Intégrations',    icon: Puzzle },
+    { id: 'overview',   label: 'Dashboard',        icon: LayoutDashboard },
+    { id: 'bookings',   label: 'Réservations',     icon: Calendar },
+    { id: 'clients',    label: 'Clients',           icon: Users },
+    { id: 'b2b',        label: 'B2B Agences',       icon: Building2,  disabled: true },
+    { id: 'suppliers',  label: 'Fournisseurs',      icon: Plug },
+    { id: 'finance',    label: 'Finance',           icon: Banknote },
+    { id: 'rapports',   label: 'Rapports',          icon: BarChart3,  disabled: true },
+    { id: 'settings',   label: 'Paramètres',        icon: Settings2 },
+    { id: 'logs',       label: 'Logs',              icon: Terminal },
   ];
 
   const currentLabel = navItems.find(n => n.id === activeTab)?.label || 'Dashboard';
@@ -210,14 +213,27 @@ const AdminDashboard = () => {
         </div>
 
         <nav className="flex-1 py-4 px-2 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ id, label, icon: Icon }) => (
-            <button key={id} onClick={() => setActiveTab(id)} title={!sidebarOpen ? label : undefined}
+          {navItems.map(({ id, label, icon: Icon, disabled }) => (
+            <button
+              key={id}
+              onClick={() => !disabled && setActiveTab(id)}
+              disabled={disabled}
+              title={!sidebarOpen ? label : undefined}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === id ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/8 hover:text-white'
+                disabled
+                  ? 'text-white/25 cursor-not-allowed'
+                  : activeTab === id
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/60 hover:bg-white/8 hover:text-white'
               }`}
             >
               <Icon size={18} className="flex-shrink-0" />
-              {sidebarOpen && <span className="truncate">{label}</span>}
+              {sidebarOpen && (
+                <span className="truncate flex-1 text-left">{label}</span>
+              )}
+              {sidebarOpen && disabled && (
+                <span className="text-[9px] bg-white/10 text-white/40 rounded px-1 py-0.5 flex-shrink-0">bientôt</span>
+              )}
             </button>
           ))}
         </nav>
@@ -499,12 +515,30 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {activeTab === 'bookings'      && <BookingsManager />}
-          {activeTab === 'users'         && <UsersManager />}
-          {activeTab === 'omra'          && <OmraManager />}
-          {activeTab === 'comptabilite'  && <Comptabilite />}
-          {activeTab === 'fournisseurs'  && <SupplierBookings />}
-          {activeTab === 'integrations'  && <Integrations />}
+          {activeTab === 'bookings'   && <BookingsManager />}
+          {activeTab === 'clients'    && <UsersManager />}
+          {activeTab === 'omra'       && <OmraManager />}
+          {activeTab === 'finance'    && <Comptabilite />}
+          {activeTab === 'suppliers'  && <SupplierManager />}
+          {activeTab === 'settings'   && <Integrations />}
+          {activeTab === 'logs'       && <SystemLogs />}
+
+          {/* Placeholder tabs (coming soon) */}
+          {(activeTab === 'b2b' || activeTab === 'rapports') && (
+            <div className="flex flex-col items-center justify-center py-24 text-gray-400 space-y-3">
+              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+                {activeTab === 'b2b' ? <Building2 size={28} /> : <BarChart3 size={28} />}
+              </div>
+              <p className="text-sm font-semibold text-gray-500">
+                {activeTab === 'b2b' ? 'B2B Agences' : 'Rapports'} — Bientôt disponible
+              </p>
+              <p className="text-xs text-gray-400 max-w-xs text-center">
+                {activeTab === 'b2b'
+                  ? 'Gestion des agences partenaires et accès B2B'
+                  : 'Rapports analytiques et exports avancés'}
+              </p>
+            </div>
+          )}
 
         </main>
       </div>

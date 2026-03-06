@@ -89,11 +89,19 @@ export const API_ENDPOINTS = {
   // GET  /api/admin/supplier/bookings?provider=mygo&page=1&perPage=20&...filters
   // GET  /api/admin/supplier/bookings/:providerBookingId?provider=mygo
   ADMIN_SUPPLIER_BOOKINGS:        `${API_BASE_URL}/api/admin/supplier/bookings`,
-  // GET  /api/bookings/:id/provider/fees   — check cancellation fees (dry-run)
-  // PATCH /api/bookings/:id/provider/cancel — cancel at provider + mark DB cancelled
-  BOOKINGS_PROVIDER_SYNC:   (id) => `${API_BASE_URL}/api/bookings/${id}/provider/sync`,
-  BOOKINGS_PROVIDER_FEES:   (id) => `${API_BASE_URL}/api/bookings/${id}/provider/fees`,
-  BOOKINGS_PROVIDER_CANCEL: (id) => `${API_BASE_URL}/api/bookings/${id}/provider/cancel`,
+
+  // Supplier Config management (credentials, enable/disable, priority, B2C visibility)
+  SUPPLIER_CONFIGS:              `${API_BASE_URL}/api/admin/supplier-config`,
+  SUPPLIER_CONFIG_UPDATE: (id) => `${API_BASE_URL}/api/admin/supplier-config/${id}`,
+  SUPPLIER_CONFIG_TEST:   (id) => `${API_BASE_URL}/api/admin/supplier-config/${id}/test`,
+  SUPPLIER_CONFIG_LOGS:          `${API_BASE_URL}/api/admin/supplier-config/logs`,
+
+  // Per-booking supplier endpoints
+  BOOKINGS_PROVIDER_SYNC:         (id) => `${API_BASE_URL}/api/bookings/${id}/provider/sync`,
+  BOOKINGS_PROVIDER_FEES:         (id) => `${API_BASE_URL}/api/bookings/${id}/provider/fees`,
+  BOOKINGS_PROVIDER_CANCEL:       (id) => `${API_BASE_URL}/api/bookings/${id}/provider/cancel`,
+  BOOKINGS_TIMELINE:              (id) => `${API_BASE_URL}/api/bookings/${id}/timeline`,
+  BOOKINGS_SUPPLIER_LOGS:         (id) => `${API_BASE_URL}/api/bookings/${id}/supplier-logs`,
 
   // TripAdvisor proxy endpoints (server-side proxy, API key never exposed to browser)
   TRIPADVISOR_SEARCH:  `${API_BASE_URL}/api/tripadvisor/search`,

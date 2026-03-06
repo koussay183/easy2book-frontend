@@ -4,7 +4,8 @@ import {
   ArrowLeft, Hotel, Clock, User, Users, Mail, Phone,
   CreditCard, FileText, CheckCircle, XCircle,
   AlertCircle, RefreshCw, Download, Printer, Building2,
-  MapPin, Star, Utensils, Check, Edit, X, ExternalLink, Ban
+  MapPin, Star, Utensils, Check, Edit, X, ExternalLink, Ban,
+  Terminal, Plug, ChevronDown, ChevronUp, List
 } from 'lucide-react';
 import { API_ENDPOINTS, API_BASE_URL } from '../../config/api';
 
@@ -30,6 +31,23 @@ const paymentConfig = {
   failed:   { cls: 'bg-red-100 text-red-800 border-red-300',            Icon: XCircle,     label: 'Échoué'     },
   refunded: { cls: 'bg-gray-100 text-gray-700 border-gray-300',         Icon: RefreshCw,   label: 'Remboursé'  },
 };
+
+const tlConfig = {
+  booking_created:    { Icon: CheckCircle,  color: 'text-gray-500',    bg: 'bg-gray-100',    label: 'Réservation créée'       },
+  pre_booked:         { Icon: ExternalLink, color: 'text-primary-600', bg: 'bg-primary-100', label: 'Prix vérifié'            },
+  confirmed:          { Icon: Check,        color: 'text-emerald-600', bg: 'bg-emerald-100', label: 'Confirmée'               },
+  confirm_failed:     { Icon: XCircle,      color: 'text-red-600',     bg: 'bg-red-100',     label: 'Échec confirmation'      },
+  cancelled:          { Icon: XCircle,      color: 'text-red-600',     bg: 'bg-red-100',     label: 'Annulée'                 },
+  cancelled_provider: { Icon: Ban,          color: 'text-red-700',     bg: 'bg-red-100',     label: 'Annulée (fournisseur)'   },
+  synced:             { Icon: RefreshCw,    color: 'text-blue-600',    bg: 'bg-blue-100',    label: 'Synchronisée'            },
+  status_updated:     { Icon: Edit,         color: 'text-amber-600',   bg: 'bg-amber-100',   label: 'Statut mis à jour'       },
+  payment_updated:    { Icon: CreditCard,   color: 'text-violet-600',  bg: 'bg-violet-100',  label: 'Paiement mis à jour'     },
+};
+
+const fmtMs   = (ms) => ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms}ms`;
+const durBadge = (ms) => ms > 3000 ? 'bg-red-100 text-red-700 border-red-200'
+  : ms > 1000 ? 'bg-amber-50 text-amber-700 border-amber-200'
+  : 'bg-emerald-50 text-emerald-700 border-emerald-200';
 
 const Badge = ({ cfg }) => {
   const c = cfg || statusConfig.pending;
@@ -70,9 +88,21 @@ const BookingDetail = () => {
   const [hotelDetails, setHotelDetails] = useState(null);
   const [loadingHotel, setLoadingHotel] = useState(false);
 
+  /* ── Timeline + API logs state ── */
+  const [timeline,       setTimeline]      = useState([]);
+  const [loadingTl,      setLoadingTl]     = useState(false);
+  const [supplierLogs,   setSupplierLogs]  = useState([]);
+  const [loadingSupLogs, setLoadingSupLogs] = useState(false);
+  const [supLogsOpen,    setSupLogsOpen]   = useState(false);
+
+  /* ── Supplier select modal ── */
+  const [supModal, setSupModal] = useState({ open: false, configs: [], loadingConfigs: false });
+
   useEffect(() => {
     if (!location.state?.booking) { loadBooking(); }
     else { loadHotelDetails(booking.hotelBooking?.Hotel); }
+    loadTimeline();
+    loadSupplierLogs();
   }, [id]); // eslint-disable-line
 
   useEffect(() => {
@@ -103,6 +133,46 @@ const BookingDetail = () => {
     finally { setLoadingHotel(false); }
   };
 
+  const loadTimeline = async () => {
+    setLoadingTl(true);
+    try {
+      const res  = await fetch(API_ENDPOINTS.BOOKINGS_TIMELINE(id), {
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
+      });
+      const data = await res.json();
+      if (data.status === 'success') setTimeline(data.data.timeline || []);
+    } catch { /* silent */ }
+    finally { setLoadingTl(false); }
+  };
+
+  const loadSupplierLogs = async () => {
+    setLoadingSupLogs(true);
+    try {
+      const res  = await fetch(API_ENDPOINTS.BOOKINGS_SUPPLIER_LOGS(id), {
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
+      });
+      const data = await res.json();
+      if (data.status === 'success') setSupplierLogs(data.data.logs || []);
+    } catch { /* silent */ }
+    finally { setLoadingSupLogs(false); }
+  };
+
+  const openSupplierModal = async () => {
+    setSupModal({ open: true, configs: [], loadingConfigs: true });
+    try {
+      const res  = await fetch(API_ENDPOINTS.SUPPLIER_CONFIGS, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
+      });
+      const data = await res.json();
+      const configs = data.status === 'success'
+        ? (data.data || []).sort((a, b) => a.priority - b.priority)
+        : [];
+      setSupModal({ open: true, configs, loadingConfigs: false });
+    } catch {
+      setSupModal({ open: true, configs: [], loadingConfigs: false });
+    }
+  };
+
   /* ── Admin actions ── */
   const patchBooking = async (url, body) => {
     const res  = await fetch(url, {
@@ -111,7 +181,7 @@ const BookingDetail = () => {
       body: JSON.stringify(body)
     });
     const data = await res.json();
-    if (data.status === 'success') loadBooking();
+    if (data.status === 'success') { loadBooking(); loadTimeline(); }
     else alert(`Erreur: ${data.message}`);
   };
 
@@ -125,27 +195,32 @@ const BookingDetail = () => {
   };
   /* ── myGo 2-step confirmation modal ── */
   const [myGoModal, setMyGoModal] = useState({
-    open: false, step: 'idle', offer: null, error: null
+    open: false, step: 'idle', offer: null, error: null, supplierKey: 'mygo'
     // step: 'loading' | 'offer' | 'confirming' | 'done' | 'error'
   });
-  const closeMyGoModal = () => setMyGoModal({ open: false, step: 'idle', offer: null, error: null });
+  const closeMyGoModal = () => setMyGoModal({ open: false, step: 'idle', offer: null, error: null, supplierKey: 'mygo' });
 
   // Step 1 — pre-book (PreBooking:true): fetch offer, show it
-  const handlePreBook = async () => {
-    setMyGoModal({ open: true, step: 'loading', offer: null, error: null });
+  const handlePreBook = async (supplierKey = 'mygo') => {
+    setSupModal({ open: false, configs: [], loadingConfigs: false });
+    setMyGoModal({ open: true, step: 'loading', offer: null, error: null, supplierKey });
     try {
       const res  = await fetch(`${API_BASE_URL}/api/bookings/${id}/prebooking`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({ supplier: supplierKey })
       });
       const data = await res.json();
       if (data.status === 'success') {
-        setMyGoModal({ open: true, step: 'offer', offer: data.data.offer, error: null });
+        setMyGoModal({ open: true, step: 'offer', offer: data.data.offer, error: null, supplierKey });
       } else {
-        setMyGoModal({ open: true, step: 'error', offer: null, error: data.message });
+        setMyGoModal({ open: true, step: 'error', offer: null, error: data.message, supplierKey });
       }
     } catch {
-      setMyGoModal({ open: true, step: 'error', offer: null, error: 'Erreur réseau' });
+      setMyGoModal({ open: true, step: 'error', offer: null, error: 'Erreur réseau', supplierKey });
     }
   };
 
@@ -155,12 +230,18 @@ const BookingDetail = () => {
     try {
       const res  = await fetch(`${API_BASE_URL}/api/bookings/${id}/confirm`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({ supplier: myGoModal.supplierKey || 'mygo' })
       });
       const data = await res.json();
       if (data.status === 'success') {
         setMyGoModal(prev => ({ ...prev, step: 'done', error: null }));
         loadBooking();
+        loadTimeline();
+        loadSupplierLogs();
       } else {
         setMyGoModal(prev => ({ ...prev, step: 'error', error: data.message }));
       }
@@ -201,6 +282,8 @@ const BookingDetail = () => {
       if (data.status === 'success') {
         setCancelModal(prev => ({ ...prev, step: 'done', error: null }));
         loadBooking();
+        loadTimeline();
+        loadSupplierLogs();
       } else {
         setCancelModal(prev => ({ ...prev, step: 'error', error: data.message }));
       }
@@ -218,7 +301,7 @@ const BookingDetail = () => {
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
       });
       const data = await res.json();
-      if (data.status === 'success') loadBooking();
+      if (data.status === 'success') { loadBooking(); loadTimeline(); loadSupplierLogs(); }
       else alert(`Sync failed: ${data.message}`);
     } catch { alert('Erreur réseau lors de la synchronisation'); }
     finally  { setSyncing(false); }
@@ -745,10 +828,10 @@ const BookingDetail = () => {
 
                   {booking.status === 'pending' && (
                     <>
-                      <button onClick={handlePreBook}
+                      <button onClick={openSupplierModal}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors">
                         <CheckCircle size={15} />
-                        Confirmer via myGo
+                        Confirmer la réservation
                       </button>
                       {!hasProviderBooking && (
                         <button onClick={() => handleUpdateStatus('cancelled')}
@@ -823,6 +906,139 @@ const BookingDetail = () => {
 
             </div>
           </div>
+
+          {/* ── Timeline ── */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <List size={16} className="text-primary-700" />
+                <p className="text-sm font-semibold text-gray-900">Historique</p>
+              </div>
+              {loadingTl
+                ? <RefreshCw size={14} className="animate-spin text-gray-400" />
+                : <p className="text-xs text-gray-400">{timeline.length} événement{timeline.length !== 1 ? 's' : ''}</p>
+              }
+            </div>
+            <div className="p-5">
+              {loadingTl ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw size={22} className="animate-spin text-primary-700" />
+                </div>
+              ) : timeline.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-6">Aucun événement enregistré</p>
+              ) : (
+                <div className="relative">
+                  <div className="absolute left-4 top-0 bottom-0 w-px bg-gray-200" />
+                  <div className="space-y-0">
+                    {timeline.map((ev, idx) => {
+                      const cfg  = tlConfig[ev.event] || { Icon: AlertCircle, color: 'text-gray-500', bg: 'bg-gray-100', label: ev.event };
+                      const Icon = cfg.Icon;
+                      return (
+                        <div key={ev._id || idx} className="relative pl-11 pb-5 last:pb-0">
+                          <div className={`absolute left-0 w-8 h-8 rounded-full ${cfg.bg} flex items-center justify-center`}>
+                            <Icon size={14} className={cfg.color} />
+                          </div>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-bold text-gray-900">{cfg.label}</p>
+                              {ev.description && <p className="text-xs text-gray-500 mt-0.5">{ev.description}</p>}
+                              {ev.performedBy?.fullName && (
+                                <p className="text-[10px] text-gray-400 mt-0.5">par {ev.performedBy.fullName}</p>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-gray-400 whitespace-nowrap flex-shrink-0">
+                              {ev.timestamp
+                                ? new Date(ev.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+                                : '—'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Supplier API logs ── */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => {
+                setSupLogsOpen(prev => !prev);
+                if (!supLogsOpen && supplierLogs.length === 0 && !loadingSupLogs) loadSupplierLogs();
+              }}
+              className="w-full px-5 py-3.5 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Terminal size={16} className="text-gray-500" />
+                <p className="text-sm font-semibold text-gray-900">Logs API fournisseurs</p>
+                {loadingSupLogs && <RefreshCw size={12} className="animate-spin text-gray-400 ml-1" />}
+              </div>
+              {supLogsOpen ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+            </button>
+            {supLogsOpen && (
+              <div className="p-5">
+                {loadingSupLogs ? (
+                  <div className="flex items-center justify-center py-6">
+                    <RefreshCw size={20} className="animate-spin text-primary-700" />
+                  </div>
+                ) : supplierLogs.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">Aucun log disponible</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-gray-100">
+                          {['Fournisseur', 'Endpoint', 'Durée', 'HTTP', 'Statut', 'Date'].map(h => (
+                            <th key={h} className="pb-2 pr-4 text-[10px] font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {supplierLogs.map((log, i) => (
+                          <tr key={log._id || i} className="hover:bg-gray-50 transition-colors">
+                            <td className="py-2 pr-4">
+                              <span className="font-bold text-gray-800 uppercase text-[10px]">{log.supplier}</span>
+                            </td>
+                            <td className="py-2 pr-4">
+                              <span className="font-mono text-gray-700">{log.endpoint}</span>
+                            </td>
+                            <td className="py-2 pr-4">
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold border ${durBadge(log.durationMs)}`}>
+                                {fmtMs(log.durationMs)}
+                              </span>
+                            </td>
+                            <td className="py-2 pr-4">
+                              <span className={`font-mono font-bold ${log.httpStatus >= 400 ? 'text-red-600' : 'text-gray-600'}`}>
+                                {log.httpStatus || '—'}
+                              </span>
+                            </td>
+                            <td className="py-2 pr-4">
+                              {log.success
+                                ? <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                                    <CheckCircle size={8} />OK
+                                  </span>
+                                : <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">
+                                    <XCircle size={8} />Fail
+                                  </span>
+                              }
+                            </td>
+                            <td className="py-2">
+                              <span className="text-gray-500 whitespace-nowrap">
+                                {new Date(log.createdAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
         </div>
       </div>
 
@@ -1187,6 +1403,93 @@ const BookingDetail = () => {
           </div>
         );
       })()}
+
+      {/* ── Supplier Select Modal ── */}
+      {supModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="ltr">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => !supModal.loadingConfigs && setSupModal({ open: false, configs: [], loadingConfigs: false })}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Plug size={16} className="text-primary-700" />
+                <p className="text-sm font-bold text-gray-900">Choisir un fournisseur</p>
+              </div>
+              <button
+                onClick={() => setSupModal({ open: false, configs: [], loadingConfigs: false })}
+                className="text-gray-400 hover:text-gray-700 transition-colors"
+              ><X size={18} /></button>
+            </div>
+            <div className="p-6">
+              {supModal.loadingConfigs ? (
+                <div className="flex items-center justify-center py-10">
+                  <RefreshCw size={28} className="animate-spin text-primary-700" />
+                </div>
+              ) : supModal.configs.length === 0 ? (
+                <div className="text-center py-8">
+                  <AlertCircle size={32} className="text-amber-400 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-gray-800 mb-1">Aucun fournisseur actif</p>
+                  <p className="text-xs text-gray-500">Activez un fournisseur dans Paramètres → Fournisseurs</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {supModal.configs.map((cfg) => {
+                    const isRec     = cfg.priority === 1;
+                    const succRate  = cfg.totalCalls > 0 ? Math.round((cfg.successCalls / cfg.totalCalls) * 100) : null;
+                    const stClr     = cfg.lastTestStatus === 'ok'     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : cfg.lastTestStatus === 'failed' ? 'bg-red-50 text-red-700 border-red-200'
+                                    : 'bg-gray-100 text-gray-500 border-gray-200';
+                    const stLbl     = cfg.lastTestStatus === 'ok' ? 'Connecté' : cfg.lastTestStatus === 'failed' ? 'Erreur' : 'Non testé';
+                    return (
+                      <div key={cfg.supplierId} className={`border rounded-xl p-4 ${isRec ? 'border-primary-300 bg-primary-50/40' : 'border-gray-200'}`}>
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-bold text-gray-900">{cfg.label || cfg.supplierId.toUpperCase()}</p>
+                              {isRec && (
+                                <span className="text-[10px] font-bold text-primary-700 bg-primary-100 border border-primary-200 px-2 py-0.5 rounded-full">
+                                  Recommandé
+                                </span>
+                              )}
+                            </div>
+                            {cfg.description && <p className="text-xs text-gray-500 mt-0.5">{cfg.description}</p>}
+                          </div>
+                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border flex-shrink-0 ${stClr}`}>
+                            {stLbl}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-gray-500 mb-3 flex-wrap">
+                          {cfg.avgResponseMs > 0 && <span>{cfg.avgResponseMs}ms moy.</span>}
+                          {succRate !== null && (
+                            <span className={`font-semibold ${succRate >= 90 ? 'text-emerald-600' : succRate >= 70 ? 'text-amber-600' : 'text-red-600'}`}>
+                              {succRate}% succès
+                            </span>
+                          )}
+                          {cfg.totalCalls > 0 && <span>{cfg.totalCalls} appel{cfg.totalCalls !== 1 ? 's' : ''}</span>}
+                        </div>
+                        <button
+                          onClick={() => handlePreBook(cfg.supplierId)}
+                          className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                            isRec
+                              ? 'bg-primary-700 hover:bg-primary-800 text-white'
+                              : 'bg-white border border-gray-200 hover:border-primary-300 text-gray-700'
+                          }`}
+                        >
+                          <CheckCircle size={14} />
+                          Pré-réserver via {cfg.label || cfg.supplierId.toUpperCase()}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   );
 };
