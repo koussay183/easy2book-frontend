@@ -96,7 +96,11 @@ export const API_ENDPOINTS = {
   SUPPLIER_CONFIG_TEST:   (id) => `${API_BASE_URL}/api/admin/supplier-config/${id}/test`,
   SUPPLIER_CONFIG_LOGS:          `${API_BASE_URL}/api/admin/supplier-config/logs`,
   SUPPLIER_CONFIG_SET_PRIMARY: (id) => `${API_BASE_URL}/api/admin/supplier-config/${id}/set-primary`,
-  REPORTS_OVERVIEW:            `${API_BASE_URL}/api/admin/reports/overview`,
+  REPORTS_OVERVIEW:   `${API_BASE_URL}/api/admin/reports/overview`,
+  REPORTS_REVENUE:    `${API_BASE_URL}/api/admin/reports/revenue`,
+  REPORTS_HOTELS:     `${API_BASE_URL}/api/admin/reports/hotels`,
+  REPORTS_SUPPLIERS:  `${API_BASE_URL}/api/admin/reports/suppliers`,
+  REPORTS_FUNNEL:     `${API_BASE_URL}/api/admin/reports/funnel`,
   ADMIN_DATA_RESET:            `${API_BASE_URL}/api/admin/data/reset-bookings`,
 
   // Per-booking supplier endpoints
