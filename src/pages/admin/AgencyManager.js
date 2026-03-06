@@ -23,7 +23,7 @@ import { API_ENDPOINTS } from '../../config/api';
 // ---------------------------------------------------------------------------
 
 const authFetch = async (url, options = {}) => {
-  const token = localStorage.getItem('accessToken');
+  const token = localStorage.getItem('adminToken');
   const res = await fetch(url, {
     ...options,
     headers: {
@@ -562,8 +562,11 @@ export default function AgencyManager() {
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
               <input type="checkbox" checked={createForm.createAdmin} onChange={(e) => setCreateForm({ ...createForm, createAdmin: e.target.checked })} />
-              Créer un compte administrateur
+              Créer le compte de connexion de l'agence
             </label>
+            <p style={{ margin: '6px 0 0 24px', fontSize: 12, color: '#6b7280', lineHeight: 1.5 }}>
+              Crée l'identifiant (email + mot de passe) que l'agence utilisera pour se connecter au portail <strong>/agency/login</strong>. Sans cela, vous devrez créer l'utilisateur séparément depuis l'onglet <em>Équipe</em>.
+            </p>
           </div>
           {createForm.createAdmin && (
             <>

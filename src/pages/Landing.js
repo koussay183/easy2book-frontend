@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Hotel, Mountain, ArrowLeft, ArrowRight, Shield, Clock, Star, MapPin, Zap, TrendingUp, Award, DollarSign, Users, Calendar } from 'lucide-react';
+import { Hotel, Mountain, ArrowLeft, ArrowRight, Shield, Clock, Star, MapPin, Zap, TrendingUp, Award, DollarSign, Users, Calendar, Building2, CheckCircle, BarChart2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SearchBox from '../components/landing/SearchBox';
 import HotelCard from '../components/landing/HotelCard';
@@ -430,6 +430,90 @@ const Landing = () => {
               </Link>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* ── B2B Agency Program ── */}
+      <section className="py-14 md:py-20 px-4 bg-gradient-to-br from-primary-800 via-primary-900 to-primary-950 relative overflow-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
+        {/* Background decoration */}
+        <div className="absolute inset-0 opacity-5 pointer-events-none">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-white rounded-full translate-y-1/2 -translate-x-1/2" />
+        </div>
+
+        <div className="container mx-auto max-w-5xl relative z-10">
+          {/* Badge */}
+          <div className={`flex ${isRTL ? 'justify-end' : 'justify-start'} mb-4`}>
+            <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white/80 text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm">
+              <Building2 size={12} />
+              {language === 'fr' ? 'Programme Partenaire B2B' : language === 'ar' ? 'برنامج الشراكة B2B' : 'B2B Partner Program'}
+            </span>
+          </div>
+
+          {/* Title + subtitle */}
+          <div className={`mb-10 ${isRTL ? 'text-right' : 'text-left'} max-w-2xl ${isRTL ? 'mr-0 ml-auto' : ''}`}>
+            <h2 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-3">
+              {language === 'fr'
+                ? <>Vous êtes une agence de voyage ?<br /><span className="text-secondary-400">Rejoignez notre réseau B2B.</span></>
+                : language === 'ar'
+                ? <>هل أنت وكالة سفر؟<br /><span className="text-secondary-400">انضم إلى شبكة B2B.</span></>
+                : <>Are you a travel agency?<br /><span className="text-secondary-400">Join our B2B network.</span></>
+              }
+            </h2>
+            <p className="text-white/70 text-base md:text-lg leading-relaxed">
+              {language === 'fr'
+                ? "Accédez à des milliers d'hôtels aux tarifs nets, définissez votre propre marge, gérez vos réservations et factures depuis un portail dédié."
+                : language === 'ar'
+                ? 'الوصول إلى آلاف الفنادق بأسعار صافية، حدد هامشك الخاص، وأدر حجوزاتك وفواتيرك من بوابة مخصصة.'
+                : "Access thousands of hotels at net rates, set your own margin, manage bookings and invoices from a dedicated portal."
+              }
+            </p>
+          </div>
+
+          {/* Benefits grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+            {[
+              {
+                icon: DollarSign,
+                title: language === 'fr' ? 'Tarifs nets exclusifs' : language === 'ar' ? 'أسعار صافية حصرية' : 'Exclusive net rates',
+                desc:  language === 'fr' ? 'Prix fournisseur directs + votre markup au choix (% ou montant fixe).' : language === 'ar' ? 'أسعار المورد المباشرة + هامشك الخاص (% أو مبلغ ثابت).' : 'Direct supplier prices + your chosen markup (% or fixed amount).',
+              },
+              {
+                icon: BarChart2,
+                title: language === 'fr' ? 'Portail de gestion complet' : language === 'ar' ? 'بوابة إدارة متكاملة' : 'Full management portal',
+                desc:  language === 'fr' ? 'Tableau de bord, réservations, équipe, factures — tout centralisé.' : language === 'ar' ? 'لوحة تحكم، حجوزات، فريق، فواتير — كل شيء مركزي.' : 'Dashboard, bookings, team, invoices — all centralized.',
+              },
+              {
+                icon: Shield,
+                title: language === 'fr' ? 'Crédit & facturation' : language === 'ar' ? 'ائتمان وفوترة' : 'Credit & billing',
+                desc:  language === 'fr' ? 'Ligne de crédit dédiée, historique de facturation imprimable.' : language === 'ar' ? 'خط ائتمان مخصص، سجل فواتير قابل للطباعة.' : 'Dedicated credit line, printable billing history.',
+              },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="bg-white/8 border border-white/15 rounded-2xl p-5 backdrop-blur-sm hover:bg-white/12 transition-colors">
+                <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center mb-4 flex-shrink-0">
+                  <Icon size={20} className="text-white" />
+                </div>
+                <h3 className={`text-white font-bold text-base mb-1.5 ${isRTL ? 'text-right' : ''}`}>{title}</h3>
+                <p className={`text-white/60 text-sm leading-relaxed ${isRTL ? 'text-right' : ''}`}>{desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA row */}
+          <div className={`flex items-center gap-4 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
+            <Link
+              to="/agency/login"
+              className="inline-flex items-center gap-2 bg-white text-primary-800 font-bold px-6 py-3 rounded-xl text-sm hover:bg-primary-50 transition-colors shadow-lg"
+            >
+              <Building2 size={16} />
+              {language === 'fr' ? 'Accéder au portail agence' : language === 'ar' ? 'الوصول إلى بوابة الوكالة' : 'Access agency portal'}
+              <ArrowRight size={14} />
+            </Link>
+            <div className={`flex items-center gap-2 text-white/60 text-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <CheckCircle size={15} className="text-emerald-400 flex-shrink-0" />
+              {language === 'fr' ? 'Déjà partenaire ? Connectez-vous avec vos identifiants agence.' : language === 'ar' ? 'هل أنت بالفعل شريك؟ سجل دخولك ببيانات وكالتك.' : 'Already a partner? Log in with your agency credentials.'}
+            </div>
+          </div>
         </div>
       </section>
 
